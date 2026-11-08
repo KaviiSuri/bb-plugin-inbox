@@ -95,13 +95,40 @@
   .entry .m { color: var(--muted); font-size: 12px; }
   .events div { padding: 1px 0; }
   .events .tm { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+
+  /* Phone, and narrow bb chat embeds. */
+  @media (max-width: 800px) {
+    body { font-size: 15px; }
+    header { padding: 14px 16px 0; }
+    header h1 { font-size: 19px; }
+    header p { font-size: 14px; margin-bottom: 10px; }
+    .tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs button { flex: none; white-space: nowrap; min-height: 40px; padding: 8px 12px; }
+    .tabs button.free { margin-left: 0; }
+    .stage { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 16px; }
+    .sb { min-height: 0; }
+    .story .q { font-size: 20px; }
+    .lines { grid-template-columns: minmax(0, 1fr); gap: 2px; font-size: 17px; }
+    .lines .k { padding-top: 10px; }
+    .modelsaid { padding-left: 0; margin-top: 0; }
+    .other { padding: 10px; }
+    .nav { flex-direction: column; align-items: stretch; gap: 8px; }
+    .btn, .btn.big { width: 100%; min-height: 44px; }
+    .link { min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); width: 100%; }
+    .end .btn + .btn { margin-top: 8px; }
+    .row .acts .btn.small, .fp .btns .btn { width: auto; min-height: 40px; }
+    .fp .pick button { min-height: 40px; }
+    .details { padding: 0 16px 32px; }
+    .dgrid { grid-template-columns: minmax(0, 1fr); }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="tag">Prototype · throwaway · issue #4</div>
   <h1>How should the inbox behave?</h1>
-  <p>Each tab is a short story about your agents. Press <b>Next</b> and watch the inbox on the left: it's what the sidebar's Inbox tab would show you. The right side says what happened and why.</p>
+  <p>Each tab is a short story about your agents. Press <b>Next</b> and watch the inbox: it's what the sidebar's Inbox tab would show you. Next to it (or below it, on a phone) it says what happened and why.</p>
   <div class="tabs" id="tabs"></div>
 </header>
 <div class="stage">
@@ -839,6 +866,8 @@ function render() {
   document.getElementById('tabs').innerHTML = WALKS.map((w, i) => `<button class="${ui.tab === i ? 'on' : ''}" data-t="${i}">${esc(w.tab)}</button>`).join('')
     + `<button class="free ${ui.tab === FREE ? 'on' : ''}" data-t="${FREE}">Free play</button>`;
   document.querySelectorAll('#tabs [data-t]').forEach(b => b.onclick = () => startTab(+b.dataset.t));
+  const onTab = document.querySelector('#tabs .on'), strip = document.getElementById('tabs');
+  if (onTab) strip.scrollLeft = onTab.offsetLeft - strip.offsetLeft - 16;
   const v = view(state);
   renderSidebar(v, prevView, ui.tab === FREE);
   if (ui.tab === FREE) renderFree(); else renderStory();
