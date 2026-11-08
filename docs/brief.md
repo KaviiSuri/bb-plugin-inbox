@@ -18,11 +18,20 @@ The human should always know what agents are doing and be able to verify it. Wor
 
 ## Findings from the kickoff
 
-- **The built-in `thread-list` plugin can't really be forked.** Only a minified build ships, at `~/.local/share/mise/installs/npm-bb-app/latest/lib/node_modules/bb-app/server/dist/builtin-plugins/thread-list/`. Its source depends on private `@bb/shared-ui` workspace packages. Use it as behavioural reference only.
-- **The extension point is `app.slots.experimental_threadList`.** It replaces the scrolling list only; the New-thread button, search, nav and footer stay. Users switch to it under Settings → Appearance → Sidebar.
-- **T3 Sidebar (SawyerHood, MIT) is the reference implementation of that slot**, and it's already inbox-shaped: stable order, status kept inside each card, shelves. Source: `~/.bb/plugins/cache/git/github.com/SawyerHood/sawyer-plugins/8b535729dd2251ceb293c7caf74e43e477f942a3/plugins/t3sidebar/` and https://github.com/SawyerHood/bb-plugin-t3sidebar. It's the most likely base for the fork.
-- **`bb-plugin-attention` (npm, installed, v0.1.5) already computes "threads that need your attention"** (errors, pending input, unread turns). Source: `~/.bb/plugins/cache/npm/bb-plugin-attention/0.1.5/`. It's prior art for the classifier and may even be reusable.
-- The user's own `~/code/KaviiSuri/bb-plugin-goal` shows the house layout for a plugin repo (AGENTS.md, CONTEXT.md, app.tsx, server.ts, vitest).
+- **Fork the built-in `thread-list` plugin. bb is open source:** https://github.com/get-bb/bb, `plugins/thread-list/` (about 29k lines of TS/TSX including tests; read `PLUGIN_OVERVIEW.md` first). It already does pinned and custom sections, project/machine/chronological organization, nested child threads, worktree grouping, drag to reorder, nesting, status glyphs, and row metadata. That is the whole Threads tab. Our work is adding the Inbox tab on top of it, not rebuilding the tree.
+  - The fork has to be made standalone. Its imports of `@/components/ui/*` and `@/lib/utils` are bb's vendored UI (see the "vendored components" section of the bb-plugin-authoring frontend-hooks-and-ui reference, and what `bb plugin new` scaffolds). Its `workspace:*` dependencies (`@bb/shared-ui`, `@bb/plugin-build`, `@get-bb/plugin-sdk`) need to be swapped for published or vendored equivalents.
+  - Pin the upstream commit you fork from, so upstream changes can be merged in later.
+- **Follow `/bb-plugin-authoring`** (the BB skill) for the SDK contract, starting with the `frontend-registration.md` reference. The slot is `app.slots.experimental_threadList`, the one exclusive slot; users pick a provider under Settings → Appearance → Sidebar. `experimental_useSidebarThreads()` returns threads with `parentThreadId`, `parentNotifications`, `lifecycleOwnerThreadId`, `sourceThreadId`, `status`/`runtimeStatus`, `queuedWork`, `hasPendingInteraction`, `isUnread`, `lastReadAt`, `latestAttentionAt`, `indicator`, `environment { isWorktree, branchName, path }` and more. Most of the inbox's deterministic signals are already there.
+- **Secondary prior art only:** T3 Sidebar (SawyerHood, MIT; `~/.bb/plugins/cache/git/github.com/SawyerHood/sawyer-plugins/8b535729dd2251ceb293c7caf74e43e477f942a3/plugins/t3sidebar/`) is an inbox-style replacement for the same slot. Borrow ideas from it (stable order, status inside the card), not code.
+- **`bb-plugin-attention`** (npm, installed, v0.1.5) already computes "threads that need your attention" (errors, pending input, unread turns). Source: `~/.bb/plugins/cache/npm/bb-plugin-attention/0.1.5/`. It's prior art for the classifier.
+- The user's `~/code/KaviiSuri/bb-plugin-goal` shows the house layout for a plugin repo.
+
+## How this project runs: /bb-orchestrate-threads
+
+- The thread working in this project is the **orchestrator**, running on the **pi** harness. It writes briefs, tickets and records, reviews by mutation, and relays to the human. It doesn't author research docs or code itself.
+- All work goes to **bb child threads** (`bb thread spawn --parent-self`), never the in-process subagent tool. Children run on pi with model `claude-bridge/claude-opus-5-5` (judgment, design, taste) or `openai/gpt-5.5` (mechanical sweeps, cross-checking). Pick per ticket.
+- Default concurrency is up to 3 in flight, unless the human says otherwise. The human reviews before anything lands on `main`.
+- Put tickets on the bb task board (`bb tasks`, see the tasks skill). Write each brief to a file under `docs/briefs/` and point the spawn prompt at it.
 
 ## Process (from /ask-matt)
 
@@ -37,7 +46,7 @@ Main flow, multi-session branch:
 ## Research questions
 
 1. **Prior art:** the T3 Code app's sidebar (the real T3 Code, not the BB plugin), Plannotator's inbox, Conductor, Linear's inbox, GitHub notifications, Superhuman / inbox-zero triage, and any other agent-orchestration "attention queue" UIs. For each: what counts as an item, how items are ordered, what clears an item, and how noise is kept down.
-2. **The BB Plugin SDK:** what `experimental_threadList` gets (props, thread fields, child/parent links, environment and worktree info, statuses, pending interactions, unread state), and what server-side hooks or storage exist to persist verification state. Check the plugin-api-docs plugin and the bb-plugin-authoring skill.
-3. **T3 Sidebar internals:** how it builds its list, and whether it can render a nested tree with worktree grouping.
+2. **The BB Plugin SDK, via /bb-plugin-authoring:** confirm the `experimental_threadList` and `experimental_useSidebarThreads` fields against the installed SDK types (`bb plugin types`), and find what server-side hooks, events and storage exist to persist verification state and compute inbox items.
+3. **Upstream `thread-list` internals** (get-bb/bb `plugins/thread-list`): how it builds the tree (children, worktree grouping, sections), its state and storage, where an Inbox tab can slot in, and exactly what forking it standalone takes (vendored UI, workspace deps, build). Skim T3 Sidebar for inbox ideas only.
 4. **bb-plugin-attention:** its signals and its logic.
 5. **What thread metadata a spawner can set**, so a child's audience can be declared at spawn time.
