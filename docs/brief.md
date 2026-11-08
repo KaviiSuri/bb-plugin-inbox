@@ -31,7 +31,7 @@ The human should always know what agents are doing and be able to verify it. Wor
 - The thread working in this project is the **orchestrator**, running on the **pi** harness. It writes briefs, tickets and records, reviews by mutation, and relays to the human. It doesn't author research docs or code itself.
 - All work goes to **bb child threads** (`bb thread spawn --parent-self`), never the in-process subagent tool. Children run on pi with model `claude-bridge/claude-opus-5-5` (judgment, design, taste) or `openai/gpt-5.5` (mechanical sweeps, cross-checking). Pick per ticket.
 - Default concurrency is up to 3 in flight, unless the human says otherwise. The human reviews before anything lands on `main`.
-- Put tickets on the bb task board (`bb tasks`, see the tasks skill). Write each brief to a file under `docs/briefs/` and point the spawn prompt at it.
+- Track all work in **GitHub Issues** on https://github.com/KaviiSuri/bb-plugin-inbox (private), configured by `/setup-matt-pocock-skills` (see `docs/agents/issue-tracker.md` once it exists). Don't use the bb task board. Write each brief to a file under `docs/briefs/` and point the spawn prompt at it.
 
 ## Process (from /ask-matt): prototype-driven
 
@@ -45,7 +45,7 @@ Load these skills before acting: `/ask-matt` (routing), `/bb-orchestrate-threads
 | 2. Logic prototype | `/prototype` → LOGIC.md | One HTML file the user can double-click: the inbox state machine with fake threads. It covers tier ordering, child audience routing (`human` vs. `parent`), clear = verified, a verified thread doing new work and coming back, and running threads collapsing to a count. Free-play buttons plus guided walkthroughs, with the state always visible. |
 | 3. UI prototype | `/prototype` → UI.md | Several radically different Inbox tab designs, switchable by a floating bar. Run them **in the real sidebar** by registering a throwaway `experimental_threadList` provider that reads live `experimental_useSidebarThreads()`, so the user feels it against their own threads. Fixtures are a fallback for states that are hard to reproduce. |
 | 4. Grill against the prototypes | `/grill-with-docs` | Only questions the prototypes raised, each one asked as "variant A vs. B, here's the link". Decisions go into `CONTEXT.md` and `docs/adr/`. |
-| 5. Spec and tickets | `/to-spec` → `/to-tickets` | The fork of `plugins/thread-list` plus the Inbox tab, as tracer-bullet tickets on the bb task board with blocking edges. |
+| 5. Spec and tickets | `/to-spec` → `/to-tickets` | The fork of `plugins/thread-list` plus the Inbox tab, as tracer-bullet GitHub issues with native blocking links. |
 | 6. Build | `/implement` per ticket, in child threads | TDD inside, `/code-review` before each commit, mutation review by the orchestrator, human review before merge. |
 
 Rules:
