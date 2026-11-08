@@ -118,13 +118,11 @@ export function useEvidence(
       if (g?.outcome === "available" && g.workspace) {
         const w = g.workspace;
         const all = w.allChanges ?? w.mergeBase ?? w.workingTree;
-        const files = [...(w.mergeBase?.files ?? []), ...(w.workingTree?.files ?? [])];
         diff = {
           files: all?.fileCount ?? 0,
           insertions: all?.insertions ?? 0,
           deletions: all?.deletions ?? 0,
-          fileList: files.map((f) => ({ path: f.path, status: f.status ?? "M", insertions: f.insertions, deletions: f.deletions })),
-          commits: w.mergeBase?.commits ?? [],
+          commits: w.mergeBase?.commits?.length ?? 0,
         };
       }
       let pr: PullRequest | null = null;
@@ -132,8 +130,6 @@ export function useEvidence(
         const c = p.pullRequest.checks;
         pr = {
           number: p.pullRequest.number,
-          title: p.pullRequest.title,
-          url: p.pullRequest.url,
           state: p.pullRequest.state,
           checks: {
             state: c.state,
@@ -142,7 +138,6 @@ export function useEvidence(
             failed: c.failedCount ?? 0,
             pending: c.pendingCount ?? 0,
           },
-          review: p.pullRequest.review?.state ?? "none",
         };
       }
       // Tests: no SDK signal yet (docs/research/sdk-surface.md, Gaps).

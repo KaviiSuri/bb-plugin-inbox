@@ -8,7 +8,7 @@
   },
   "bb": {
     "name": "Inbox prototype",
-    "description": "PROTOTYPE (bb-plugin-inbox issue #5): a throwaway sidebar thread list with Threads | Inbox tabs and four switchable Inbox designs.",
+    "description": "PROTOTYPE (bb-plugin-inbox issue #5): a throwaway sidebar thread list with Threads | Inbox tabs and six switchable Inbox directions.",
     "branding": {
       "icon": "ListTodo"
     },

@@ -6,7 +6,7 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ui/icon";
 import { useLocalState } from "./model";
-import { Provider, RowLink, SectionHeader, StatusGlyph, Title, rowClass, rowPadding, useInbox } from "./parts";
+import { Provider, ROW_HEIGHT, RowLink, StatusGlyph, Title, rowClass, rowPadding, useInbox } from "./parts";
 import { useSidebarData } from "./sidebar-data";
 
 export function ThreadsTab() {
@@ -69,7 +69,7 @@ export function ThreadsTab() {
           <section key={projectId}>
             <SectionHeader onClick={() => toggle(key)} collapsed={collapsed.includes(key)}>
               <Icon name="Folder" className="size-3.5" />
-              <span className="truncate">{project?.name ?? "Fixtures"}</span>
+              <span className="truncate">{project?.name ?? "demo-app"}</span>
             </SectionHeader>
             {collapsed.includes(key) ? null : list.map((t) => renderNode(t, 0))}
           </section>
@@ -96,7 +96,7 @@ function Row({
 }) {
   const { activeThreadId } = useInbox();
   return (
-    <RowLink thread={thread} className={rowClass(activeThreadId === thread.id)} style={rowPadding(depth)}>
+    <RowLink thread={thread} className={rowClass(activeThreadId === thread.id, ROW_HEIGHT)} style={rowPadding(depth)}>
       <Provider thread={thread} />
       <Title thread={thread} className="flex-1" />
       {hasChildren ? (
@@ -116,5 +116,18 @@ function Row({
         <StatusGlyph thread={thread} hidden={hidden} />
       </span>
     </RowLink>
+  );
+}
+
+function SectionHeader({ children, onClick, collapsed }: { children: React.ReactNode; onClick: () => void; collapsed: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-left text-xs font-medium text-muted-foreground hover:text-sidebar-foreground max-md:pointer-coarse:h-10"
+    >
+      {children}
+      <Icon name="ChevronRight" className={cn("ml-auto size-3 transition-transform", !collapsed && "rotate-90")} />
+    </button>
   );
 }

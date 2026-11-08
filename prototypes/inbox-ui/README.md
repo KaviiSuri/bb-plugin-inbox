@@ -3,8 +3,9 @@
 UI prototype for [bb-plugin-inbox issue #5](https://github.com/KaviiSuri/bb-plugin-inbox/issues/5).
 Lives on branch `prototype/inbox-ui` only; never merge it to `main`.
 
-Plan: four structurally different Inbox tab designs, switchable by a floating
-bar at the bottom of bb's real sidebar, reading live `experimental_useSidebarThreads()`.
+Plan: the six directions from `docs/research/visual-prior-art.md` (issue #8,
+branch `research/visual-prior-art`), switchable by a tappable bar at the bottom
+of bb's real sidebar, reading live `experimental_useSidebarThreads()`.
 
 ## Run it
 
@@ -19,34 +20,37 @@ bb client; switch back to "Threads" (`thread-list/thread-list`) the same way.
 ## Use it
 
 - Tabs at the top: **Threads** (a plain tree) | **Inbox**.
-- Bottom bar: `←  A — Tier lanes  →`, **Fixtures on/off**, `…` → reset verifications.
-  `←`/`→` cycle variants once the list has focus: click an empty spot in it
-  first, because bb's composer usually holds focus and keys never fire in a
-  text field. Variant C adds `V` / `L` / `O`.
-- Fixtures mix in fake threads: a pending plan review, a failing PR, a grilling
-  child, a parent whose research children reported back, five running threads.
-- **Verify** stores `{ verifiedBy, verifiedAt }` in localStorage
-  (`bb.inbox-prototype.verifications.v1`) and the item clears. It returns when
-  the thread's `latestAttentionAt` passes `verifiedAt`.
-- Order freezes while the pointer is over the list and re-sorts when it leaves.
+- Bottom bar: `‹ A · Paper ›`, **fx** (fixtures on/off), `…` → reset Verify and Later.
+  Everything is tappable; there are no keyboard shortcuts.
+- Fixtures mix in fake threads: a plan review, a failing PR, a broken thread,
+  a grilling child, a parent whose research children reported back, seen
+  finished work, five running threads.
+- **Verify** writes `{ verifiedBy, verifiedAt }` to localStorage. D and E have
+  Verify on the item; every variant also gets a **Verify** button in the open
+  thread's header (shown only in a client whose sidebar is this prototype). The
+  item returns when the thread's `latestAttentionAt` passes `verifiedAt`.
+- **Later** (D, E) snoozes until the thread has something new.
+- Order and seen/new state freeze while you touch the list, and for 4 s after a tap.
 
 ## Variants
 
+Rules held across all six: colour only on what needs you (amber request, red
+broken); running work is one counted line at the bottom, never rows; words over
+icons, at most a diffstat at rest; no hover-only actions; ≥40px rows on touch.
+
 | Key | Name | Bet |
 |---|---|---|
-| A | Tier lanes | The tier is the structure. Folding lanes, bold count on new arrivals, Running shelf pinned to the bottom. |
-| B | Ranked feed | Density. One list, tier as a glyph, a row expands in place with its evidence and Verify / Open. |
-| C | One at a time | Triage is a session. One card with full evidence, Verify (V) / Later (L) / Open (O), then Inbox zero. |
-| D | Attention tree | Context beats a queue. The thread tree filtered to what needs you, urgency dots rolling up through parents. |
-
-Classifier (`inbox/model.ts`) is deliberately rough: pending interaction → 1,
-error / failed queue / waiting-for-host → 2, idle and (unread or has a diff/PR)
-→ 3, a parent with finished `parent`-audience children → 4. Audience is
-inferred: `lifecycleOwnerThreadId` or `parentNotifications: "auto"` → `parent`.
+| A | Paper | Quietest. New for you / Seen band; two-line row: title, muted reason. Verify in the thread header. |
+| B | Ask chips | Sections named by need; a chip says what it wants, filled only for tiers 1–2. |
+| C | Count tabs | One tier at a time; `Needs you 3 · Verify 6 · FYI 2` is the overview; dense one-line rows. |
+| D | Shelves | One flat queue with dots; tap a row for reason + Verify / Open / Later; Running / Snoozed / Verified today shelves pinned at the foot. |
+| E | Top card | Loudest. The next item as a card with evidence and buttons; the rest a stack of one-line rows. |
+| F | Just dots | Control. The Threads row filtered to items, a dot and one muted word. |
 
 ## Screenshots
 
-`screenshots/variant-{A,B,C,D}.png` and `screenshots/threads-tab.png`, taken
-with fixtures on in a headless bb web client. That session rewrote only its own
-copy of `GET /api/v1/preferences/ui` to pick this list and blocked every write
-to it, so the user's server-synced sidebar choice never changed.
+`screenshots/<variant>-desktop.png` (sidebar crop at 1280×900) and
+`screenshots/<variant>-phone.png` (390×844, touch, sidebar drawer open), all with
+fixtures on, taken in a headless bb web client that rewrote only its own copy of
+`GET /api/v1/preferences/ui` to pick this list and blocked writes to it, so the
+user's server-synced sidebar choice never changed. D's shots have one row selected.
