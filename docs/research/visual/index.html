@@ -1,0 +1,243 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Visual prior art: Inbox tab</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#e3e1dc;--acc:#c2410c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 4px}h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:28px 0 10px}
+p.lead{color:var(--mute);margin:0 0 8px}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}nav a{font-size:13px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;color:var(--ink);text-decoration:none;background:var(--card)}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}@media(min-width:1100px){.grid{grid-template-columns:1fr 1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card h3{font-size:17px;margin:0;padding:12px 14px 4px}
+.shots{display:flex;gap:6px;overflow-x:auto;padding:6px 14px;scroll-snap-type:x mandatory}
+.shots figure{margin:0;flex:0 0 100%;scroll-snap-align:start}
+.shots figure:only-child{flex-basis:100%}
+.shots img{display:block;width:100%;max-height:70vh;object-fit:contain;background:#111;border-radius:8px}
+figcaption{font-size:12px;color:var(--mute);padding:4px 0;word-break:break-word}
+figcaption a{color:var(--mute)}
+.steal{margin:6px 14px;padding:8px 10px;background:#fff4ec;border-left:3px solid var(--acc);border-radius:6px;font-size:14px}
+dl{margin:6px 14px 14px;font-size:13px}dt{font-weight:600;margin-top:6px}dd{margin:0;color:#333}
+.short{color:#8a1c1c}
+.none{padding:4px 14px 14px;color:var(--mute);font-size:14px}
+.dir .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px 14px}
+.dir .thumbs img{width:100%;height:110px;object-fit:cover;object-position:top left;border-radius:6px;background:#111}
+.dir .bet{font-size:15px;font-weight:600;padding:2px 14px}.dir .from{font-size:12px;color:var(--mute);padding:0 14px}
+.dir .spec{font-size:14px;padding:6px 14px 14px}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:#eee;color:#444;margin-left:6px;vertical-align:middle}
+code{font:12px ui-monospace,Menlo,monospace;background:#f0eee9;padding:0 3px;border-radius:3px}
+.hint{font-size:12px;color:var(--mute)}
+</style></head><body><main>
+<h1>Visual prior art for the Inbox tab</h1>
+<p class="lead">Issue #8. 27 products looked at, 21 with screenshots. Tap any image for full size; swipe sideways inside a card when it has more than one. Directions are at the bottom. Full notes: <a href="../visual-prior-art.md">visual-prior-art.md</a>.</p>
+<nav>
+<a href="#agent">Agent and coding tools</a>
+<a href="#inboxes">Inboxes and triage</a>
+<a href="#calm">Calm lists</a>
+<a href="#directions">Directions</a></nav>
+<h2 id="agent">Agent and coding tools</h2><div class="grid">
+<section class="card"><h3>T3 Code</h3>
+<div class="shots">
+<figure><a href="t3code-1.png"><img loading="lazy" src="t3code-1.png" alt="T3 Code: sidebar crop"></a><figcaption>sidebar crop · <a href="https://t3.codes/_astro/app-desktop.BHuzLVLF_2cuoG0.webp">source</a></figcaption></figure>
+<figure><a href="t3code-2.png"><img loading="lazy" src="t3code-2.png" alt="T3 Code: full app"></a><figcaption>full app · <a href="https://t3.codes">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Bottom shelves that turn running and done work into one counted line each.</div><dl>
+<dt>At rest</dt><dd>Project tag + age on top, title, branch underneath; a status pill (Done, Waiting 18s) only when one applies. Source read by a sibling (t3code @ 09a54f01): the base row is one line, 36px, time on the right (<code>apps/web/src/components/sidebar/SidebarThreadRow.tsx:1218-1330</code>); the marketing shot shows a richer 3-line row.</dd><dt>On hover / open</dt><dd>Hover swaps the time for row actions (same file). One pill per row, picked by priority (<code>apps/web/src/components/Sidebar.logic.ts:1091-1190</code>).</dd><dt>Quieting</dt><dd>Running and settled threads drop to 32px muted shelves pinned at the bottom: <code>Working 1 ›</code>, <code>Settled 43 ›</code> (<code>SidebarListMarkers.tsx:113</code>).</dd><dt>Density (~800px)</dt><dd>~14 rows of the 3-line variant; ~22 of the 36px row (<i>inferred</i>).</dd><dt class="short">Falls short</dt><dd>Rows are still a thread list, not a queue: nothing says what the thread wants from you beyond the pill.</dd></dl></section>
+<section class="card"><h3>Conductor</h3>
+<div class="shots">
+<figure><a href="conductor-1.png"><img loading="lazy" src="conductor-1.png" alt="Conductor: sidebar crop"></a><figcaption>sidebar crop · <a href="https://www.conductor.build/conductor-app-hero-dark.webp">source</a></figcaption></figure>
+<figure><a href="conductor-2.png"><img loading="lazy" src="conductor-2.png" alt="Conductor: full app"></a><figcaption>full app · <a href="https://www.conductor.build">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Evidence lives one click away in a right panel: PR state + Changes 74 + Checks tabs.</div><dl>
+<dt>At rest</dt><dd>One line: title, collaborator avatars, age right-aligned. Bold title = unread (<i>inferred</i>); a thin green left rule marks some rows (meaning not stated on the page).</dd><dt>On hover / open</dt><dd>&quot;Ready to merge&quot; + Merge button and the changed-file list live in the open workspace&#x27;s header, not the row.</dd><dt>Quieting</dt><dd>No running shelf; quiet by being monochrome. <code>View all →</code> caps the list.</dd><dt>Density (~800px)</dt><dd>~26 rows.</dd><dt class="short">Falls short</dt><dd>Row gives no hint of which workspace needs you; you have to open each.</dd></dl></section>
+<section class="card"><h3>Plannotator Inbox</h3>
+<div class="shots">
+<figure><a href="plannotator-1.png"><img loading="lazy" src="plannotator-1.png" alt="Plannotator Inbox: list crop (README)"></a><figcaption>list crop (README) · <a href="https://github.com/backnotprop/plannotator/raw/main/.github/assets/inbox-dark.webp">source</a></figcaption></figure>
+<figure><a href="plannotator-2.png"><img loading="lazy" src="plannotator-2.png" alt="Plannotator Inbox: full inbox"></a><figcaption>full inbox · <a href="https://github.com/backnotprop/plannotator">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Sections named by what the agent needs from you, in plain words, with a chip only on the urgent tiers.</div><dl>
+<dt>At rest</dt><dd>Section header per need with count (Stopped on you 1, Holding up work 2, Waiting on you 1, New since you looked 3). Row: project + time, then a colored chip (red Stopped, amber Holds up 2) + agent icon + title.</dd><dt>On hover / open</dt><dd>The question, options and attachment render in the reading pane; <code>Mark read E</code> in its toolbar.</dd><dt>Quieting</dt><dd>&quot;New since you looked&quot; rows have no chip, so they read as lower priority without a separate tab.</dd><dt>Density (~800px)</dt><dd>~15 rows.</dd><dt class="short">Falls short</dt><dd>Needs a reading pane; at 280px the chip + title row truncates fast.</dd></dl></section>
+<section class="card"><h3>Vibe Kanban</h3>
+<div class="shots">
+<figure><a href="vibekanban-1.png"><img loading="lazy" src="vibekanban-1.png" alt="Vibe Kanban: board"></a><figcaption>board · <a href="https://www.vibekanban.com/cdn-cgi/image/width=1920/images/cta-product-desktop.webp">source</a></figcaption></figure>
+<figure><a href="vibekanban-2.png"><img loading="lazy" src="vibekanban-2.png" alt="Vibe Kanban: workspace popover"></a><figcaption>workspace popover · <a href="https://www.vibekanban.com/cdn-cgi/image/width=750/images/feature-parallel-agents.png">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> The diffstat mini-row (<code>3 Files +300 -136</code>) as compact evidence under a title.</div><dl>
+<dt>At rest</dt><dd>Kanban cards (To do / In progress / In review / Done). The attached workspace shows as a mini-row: <code>••• just now · 5 files +3584 -16</code>.</dd><dt>On hover / open</dt><dd>Workspace detail opens in a right panel with Active badge and &quot;No PR created&quot;.</dd><dt>Quieting</dt><dd>Columns separate states; older workspace rows fade (popover).</dd><dt>Density (~800px)</dt><dd>Board, not a list; ~4 cards per column.</dd><dt class="short">Falls short</dt><dd>A board does not fit a 280px sidebar at all.</dd></dl></section>
+<section class="card"><h3>Cursor (Agents view, 2.0)</h3>
+<div class="shots">
+<figure><a href="cursor-1.png"><img loading="lazy" src="cursor-1.png" alt="Cursor (Agents view, 2.0): sidebar, frame of the 2.0 launch video on cursor.com/blog/2-0"></a><figcaption>sidebar, frame of the 2.0 launch video on cursor.com/blog/2-0 · <a href="https://image.mux.com/2W2j2u1tbSRruMvH2397JtYaL1bTPE1zC022EUELcrTU/thumbnail.png?time=40">source</a></figcaption></figure>
+<figure><a href="cursor-2.png"><img loading="lazy" src="cursor-2.png" alt="Cursor (Agents view, 2.0): agent + review pane"></a><figcaption>agent + review pane · <a href="https://cursor.com/blog/2-0">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Only running work gets a card; everything else is one gray line.</div><dl>
+<dt>At rest</dt><dd>Three groups: IN PROGRESS, OLDER, ARCHIVED. In-progress row is a raised card with a second line <code>1 of 3 Models completed</code> and spinner; older rows are one muted line with branch icon + <code>4d</code>.</dd><dt>On hover / open</dt><dd>Per-model results (files, +/-), to-dos, and Review/Apply live in the open agent.</dd><dt>Quieting</dt><dd>Older work is gray text; archived collapses to a header.</dd><dt>Density (~800px)</dt><dd>~12 rows.</dd><dt class="short">Falls short</dt><dd>Nothing marks &quot;needs you&quot;; finished vs. waiting are both just &quot;Older&quot;.</dd></dl></section>
+<section class="card"><h3>OpenAI Codex app</h3>
+<div class="shots">
+<figure><a href="codex-1.png"><img loading="lazy" src="codex-1.png" alt="OpenAI Codex app: sidebar, frame at 26s of the video on learn.chatgpt.com/docs/app"></a><figcaption>sidebar, frame at 26s of the video on learn.chatgpt.com/docs/app · <a href="https://cdn.openai.com/devhub/videos-learn/proactive-teammate-v2-1080p-v1.mp4">source</a></figcaption></figure>
+<figure><a href="codex-2.png"><img loading="lazy" src="codex-2.png" alt="OpenAI Codex app: full app"></a><figcaption>full app · <a href="https://learn.chatgpt.com/docs/app">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> The calmest row in the field: title + age, nothing else.</div><dl>
+<dt>At rest</dt><dd>Nav (New chat, Search, Plugins, Pull requests, Automations 7), then Pinned threads with a schedule icon + age, then Threads: one line title + age.</dd><dt>On hover / open</dt><dd>Thread body says &quot;One thing needs attention&quot; — the attention lives inside the thread, not on the row.</dd><dt>Quieting</dt><dd>No color at all in the list. Ages are the only signal.</dd><dt>Density (~800px)</dt><dd>~22 rows.</dd><dt class="short">Falls short</dt><dd>Too calm for triage: no way to tell a blocked thread from a finished one without opening it.</dd></dl></section>
+<section class="card"><h3>Devin</h3>
+<div class="shots">
+<figure><a href="devin-1.png"><img loading="lazy" src="devin-1.png" alt="Devin: sidebar, frame at 20s of the intro video on docs.devin.ai/get-started/devin-intro"></a><figcaption>sidebar, frame at 20s of the intro video on docs.devin.ai/get-started/devin-intro · <a href="https://mintcdn.com/cognitionai/iH03e_G1Q4XPL5Ez/images/get-started/devin-docs-new-intro.mp4">source</a></figcaption></figure>
+<figure><a href="devin-2.png"><img loading="lazy" src="devin-2.png" alt="Devin: full app"></a><figcaption>full app · <a href="https://docs.devin.ai/get-started/devin-intro">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> The reason line <i>is</i> the status: colored words instead of a chip or icon.</div><dl>
+<dt>At rest</dt><dd>Session title, then one orange line <code>Approval required · ⎇1</code> (PR count).</dd><dt>On hover / open</dt><dd>&quot;Action required: Approve skill save&quot; banner sits above the composer in the session.</dd><dt>Quieting</dt><dd>The only color in the sidebar is the ask; everything else is gray.</dd><dt>Density (~800px)</dt><dd>~20 rows (<i>inferred</i>: the demo has one session).</dd><dt class="short">Falls short</dt><dd>Demo shows one session; no public view of how it scales.</dd></dl></section>
+<section class="card"><h3>Claude Code desktop</h3>
+<div class="shots">
+<figure><a href="claude-code-1.png"><img loading="lazy" src="claude-code-1.png" alt="Claude Code desktop: sidebar, frame at 2.5s of the video embedded in claude.com/resources/articles/claude-code-desktop-redesign"></a><figcaption>sidebar, frame at 2.5s of the video embedded in claude.com/resources/articles/claude-code-desktop-redesign · <a href="https://www.youtube.com/watch?v=rWaQSQEm_aY">source</a></figcaption></figure>
+<figure><a href="claude-code-2.png"><img loading="lazy" src="claude-code-2.png" alt="Claude Code desktop: full app"></a><figcaption>full app · <a href="https://claude.com/resources/articles/claude-code-desktop-redesign">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Pinned on top of Recents, both one line; nothing else.</div><dl>
+<dt>At rest</dt><dd>Pinned and Recents, one line each, no time, a small glyph for the running one.</dd><dt>On hover / open</dt><dd>Tasks, diff, terminal and plan open as panes on the right.</dd><dt>Quieting</dt><dd>No status on idle rows at all.</dd><dt>Density (~800px)</dt><dd>~28 rows.</dd><dt class="short">Falls short</dt><dd>The public frame shows no needs-you state; whatever the sidebar does there is not visible in the launch video.</dd></dl></section>
+<section class="card"><h3>Google Jules</h3>
+<div class="shots">
+<figure><a href="jules-1.png"><img loading="lazy" src="jules-1.png" alt="Google Jules: task list, from jules.google/docs/tasks-repos/"></a><figcaption>task list, from jules.google/docs/tasks-repos/ · <a href="https://jules.google/docs/_astro/delete1.Bxt2fzxA_Z1mgDWM.webp">source</a></figcaption></figure>
+</div>
+<div class="steal"><b>Steal:</b> Status as a sentence written to you (&quot;waiting for you to review&quot;).</div><dl>
+<dt>At rest</dt><dd>Full-width task rows: prompt text, then a one-line status (<code>Jules is waiting for you to review</code>, orange <code>Needs clarification</code>, <code>This task is paused</code>, <code>Failed</code>). Right side: a pill (<code>Ready for review</code>, <code>Paused</code>), a progress bar, or a red ! icon.</dd><dt>On hover / open</dt><dd>Delete/pause appear on hover (the red box in the doc).</dd><dt>Quieting</dt><dd>Paused and failed rows stay in the list; no grouping.</dd><dt>Density (~800px)</dt><dd>~10 rows.</dd><dt class="short">Falls short</dt><dd>Unsorted: the one that needs clarification sits between running ones.</dd></dl></section>
+<section class="card"><h3>GitHub Copilot coding agent</h3>
+<div class="shots">
+<figure><a href="copilot-1.png"><img loading="lazy" src="copilot-1.png" alt="GitHub Copilot coding agent: Agents tab list crop, from github.blog/changelog/2026-01-26-introducing-the-agents-tab-in-your-repository/"></a><figcaption>Agents tab list crop, from github.blog/changelog/2026-01-26-introducing-the-agents-tab-in-your-repository/ · <a href="https://github.com/user-attachments/assets/cbf6faf4-acab-4441-b3dd-2436b4af642b">source</a></figcaption></figure>
+<figure><a href="copilot-2.png"><img loading="lazy" src="copilot-2.png" alt="GitHub Copilot coding agent: Sessions list, same post"></a><figcaption>Sessions list, same post · <a href="https://github.blog/wp-content/uploads/2026/01/540637404-350e07e0-b78a-4760-8964-1f7901b681f5.jpg">source</a></figcaption></figure>
+<figure><a href="copilot-3.png"><img loading="lazy" src="copilot-3.png" alt="GitHub Copilot coding agent: agent sessions popover, github.blog/changelog/2025-10-28-a-mission-control-to-assign-steer-and-track-copilot-coding-agent-tasks/"></a><figcaption>agent sessions popover, github.blog/changelog/2025-10-28-a-mission-control-to-assign-steer-and-track-copilot-coding-agent-tasks/ · <a href="https://github.com/user-attachments/assets/1dffaa3b-ff6f-4c6e-a8aa-964841ea6725">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">3 images, swipe →</div>
+<div class="steal"><b>Steal:</b> &quot;Ready for review&quot; as the default end state; diffstat bar as inline evidence.</div><dl>
+<dt>At rest</dt><dd>Two lines: status icon (green check / amber spinner) + title, then <code>2h · Ready for review</code>. Sessions list adds PR number and a +/- diffstat bar on the right.</dd><dt>On hover / open</dt><dd>Log, diff and &quot;View pull request&quot; open in the main pane.</dd><dt>Quieting</dt><dd>Sessions split into <code>Active 32</code> / <code>Done 12</code> tabs.</dd><dt>Density (~800px)</dt><dd>~14 rows.</dd><dt class="short">Falls short</dt><dd>Everything finished says &quot;Ready for review&quot;; nothing ranks them.</dd></dl></section>
+<section class="card"><h3>Sculptor (Imbue)</h3>
+<div class="shots">
+<figure><a href="sculptor-1.png"><img loading="lazy" src="sculptor-1.png" alt="Sculptor (Imbue): sidebar crop, from imbue.com/sculptor/"></a><figcaption>sidebar crop, from imbue.com/sculptor/ · <a href="https://cdn.sanity.io/images/dg1xe82e/production/eebdf19df9bff932a91498bf286020da8bb3be96-1920x1080.gif">source</a></figcaption></figure>
+<figure><a href="sculptor-2.png"><img loading="lazy" src="sculptor-2.png" alt="Sculptor (Imbue): full app"></a><figcaption>full app · <a href="https://imbue.com/sculptor/">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Branch name in the muted second line — it is what you actually recognise work by.</div><dl>
+<dt>At rest</dt><dd>Green dot + title, then <code>56 mins ago · sculptor/branch-name</code>.</dd><dt>On hover / open</dt><dd>Merge / Pairing Mode buttons and the Changes diff on the right.</dd><dt>Quieting</dt><dd>Every row looks the same; dot color is the only state.</dd><dt>Density (~800px)</dt><dd>~22 rows.</dd><dt class="short">Falls short</dt><dd>Uniform rows; a dot alone carries all of the state.</dd></dl></section>
+<section class="card"><h3>Amp</h3>
+<div class="shots">
+<figure><a href="amp-1.png"><img loading="lazy" src="amp-1.png" alt="Amp: sidebar, frame at 10s of the video on ampcode.com"></a><figcaption>sidebar, frame at 10s of the video on ampcode.com · <a href="https://static.ampcode.com/docs/day-to-day-in-amp-screen-1080-v2.mp4">source</a></figcaption></figure>
+<figure><a href="amp-2.png"><img loading="lazy" src="amp-2.png" alt="Amp: full app"></a><figcaption>full app · <a href="https://ampcode.com">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Snoozed and Inactive as counted buckets at the foot of the list.</div><dl>
+<dt>At rest</dt><dd>One line per thread with an agent avatar; small right-side glyphs (pin, edit, a ! badge). Projects as one-line rows with counts.</dd><dt>On hover / open</dt><dd>Actions on hover (<i>inferred</i> from the glyphs).</dd><dt>Quieting</dt><dd>Bottom buckets: <code>Inactive Last 72h 0</code>, <code>Snoozed 5</code>, <code>Archived</code> — old and snoozed work becomes one counted line.</dd><dt>Density (~800px)</dt><dd>~30 rows.</dd><dt class="short">Falls short</dt><dd>Small, low-contrast glyphs; hard to see which thread needs you at a glance.</dd></dl></section>
+<section class="card"><h3>Factory (desktop)</h3>
+<div class="shots">
+<figure><a href="factory-1.png"><img loading="lazy" src="factory-1.png" alt="Factory (desktop): sidebar, frame at 15s of the video on factory.ai"></a><figcaption>sidebar, frame at 15s of the video on factory.ai · <a href="https://factory.com/videos/desktop-overview.mp4">source</a></figcaption></figure>
+<figure><a href="factory-2.png"><img loading="lazy" src="factory-2.png" alt="Factory (desktop): full app"></a><figcaption>full app · <a href="https://factory.ai">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> Dot only on live rows; idle rows have no glyph at all.</div><dl>
+<dt>At rest</dt><dd>SESSIONS grouped by project (collapsible). One line: orange dot for live work + title + age (<code>Now</code>, <code>2m</code>, <code>1h</code>).</dd><dt>On hover / open</dt><dd>Plan steps and diff in the session.</dd><dt>Quieting</dt><dd>Collapsed projects (backend, local-demos) hide their rows entirely.</dd><dt>Density (~800px)</dt><dd>~30 rows.</dd><dt class="short">Falls short</dt><dd>Dot means &quot;active&quot;, not &quot;needs you&quot;.</dd></dl></section>
+<section class="card"><h3>Zed agent panel</h3>
+<p class="none">No public visual of the thread-history list; zed.dev/agentic only shows the review panel. Skipped.</p></section>
+</div>
+<h2 id="inboxes">Inboxes and triage</h2><div class="grid">
+<section class="card"><h3>Linear Inbox</h3>
+<div class="shots">
+<figure><a href="linear-1.png"><img loading="lazy" src="linear-1.png" alt="Linear Inbox: official docs image"></a><figcaption>official docs image · <a href="https://linear.app/docs/inbox">source</a></figcaption></figure>
+</div>
+<div class="steal"><b>Steal:</b> Fading read rows: the list ages visually instead of moving.</div><dl>
+<dt>At rest</dt><dd>Avatar with a small action badge, title (blue dot if unread), then <code>Didier assigned the issue to you</code>; status icon + age on the right.</dd><dt>On hover / open</dt><dd>Snooze/delete etc. on hover and keyboard (docs).</dd><dt>Quieting</dt><dd>Read rows fade in steps; <code>Priority 4</code> / <code>Other 12</code> tabs keep low-value notifications out of the first view.</dd><dt>Density (~800px)</dt><dd>~12 rows.</dd><dt class="short">Falls short</dt><dd>Avatar + badge + status icon is three glyphs per row; heavy at 280px.</dd></dl></section>
+<section class="card"><h3>GitHub notifications</h3>
+<div class="shots">
+<figure><a href="github-1.png"><img loading="lazy" src="github-1.png" alt="GitHub notifications: bulk triage, docs.github.com/…/managing-notifications-from-your-inbox"></a><figcaption>bulk triage, docs.github.com/…/managing-notifications-from-your-inbox · <a href="https://raw.githubusercontent.com/github/docs/main/assets/images/help/notifications-v2/triage-multiple-notifications-together.png">source</a></figcaption></figure>
+<figure><a href="github-2.png"><img loading="lazy" src="github-2.png" alt="GitHub notifications: row with hover actions, same docs"></a><figcaption>row with hover actions, same docs · <a href="https://raw.githubusercontent.com/github/docs/main/assets/images/help/notifications-v2/save-triaging-option.png">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> The reason label (why this is in your inbox) as plain gray text at the row&#x27;s end.</div><dl>
+<dt>At rest</dt><dd>Repo + number, title, type icon; a reason label (<code>mention</code>) on the right.</dd><dt>On hover / open</dt><dd>Hover shows Done ✓, Unsubscribe, Save. Checkbox selects for bulk <code>Done</code>.</dd><dt>Quieting</dt><dd>Done removes it; <code>is:done</code> keeps an audit trail.</dd><dt>Density (~800px)</dt><dd>~16 rows.</dd><dt class="short">Falls short</dt><dd>Hover-only actions; nothing works on touch without opening.</dd></dl></section>
+<section class="card"><h3>Superhuman</h3>
+<div class="shots">
+<figure><a href="superhuman-1.png"><img loading="lazy" src="superhuman-1.png" alt="Superhuman: Split Inbox image"></a><figcaption>Split Inbox image · <a href="https://superhuman.com/products/mail">source</a></figcaption></figure>
+</div>
+<div class="steal"><b>Steal:</b> Tabs that are just words + counts; the count <i>is</i> the summary.</div><dl>
+<dt>At rest</dt><dd>One line: sender | colored label chip | subject + gray preview. Selected row has a left accent bar.</dd><dt>On hover / open</dt><dd>Everything else via keyboard (E = done).</dd><dt>Quieting</dt><dd>Split Inbox tabs with counts: <code>Important 7 · Calendar 3 · Docs 8 · Other 1</code>.</dd><dt>Density (~800px)</dt><dd>~20 rows.</dd><dt class="short">Falls short</dt><dd>One-line row assumes a wide window; at 280px the preview disappears.</dd></dl></section>
+<section class="card"><h3>HEY</h3>
+<div class="shots">
+<figure><a href="hey-1.png"><img loading="lazy" src="hey-1.png" alt="HEY: Imbox, hey.com/how-it-works/"></a><figcaption>Imbox, hey.com/how-it-works/ · <a href="https://www.hey.com/assets/images/how-it-works/imbox.webp">source</a></figcaption></figure>
+<figure><a href="hey-2.png"><img loading="lazy" src="hey-2.png" alt="HEY: Paper Trail"></a><figcaption>Paper Trail · <a href="https://www.hey.com/assets/images/how-it-works/paper-trail.webp">source</a></figcaption></figure>
+<figure><a href="hey-3.png"><img loading="lazy" src="hey-3.png" alt="HEY: Reply Later stack"></a><figcaption>Reply Later stack · <a href="https://www.hey.com/assets/images/how-it-works/reply-crop.webp">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">3 images, swipe →</div>
+<div class="steal"><b>Steal:</b> &quot;New for you / Previously seen&quot; with a background change, not a badge.</div><dl>
+<dt>At rest</dt><dd>Imbox: <code>NEW FOR YOU</code> (orange dot rows on white) above <code>PREVIOUSLY SEEN</code> (on gray). Paper Trail is the same row with no dots.</dd><dt>On hover / open</dt><dd>Reply Later and Set Aside are card piles pinned at the bottom; tapping fans them out into &quot;Focus &amp; Reply&quot;.</dd><dt>Quieting</dt><dd>Receipts and newsletters go to separate places (Paper Trail, The Feed) and never hit the Imbox.</dd><dt>Density (~800px)</dt><dd>~10 rows.</dd><dt class="short">Falls short</dt><dd>Big rows, built for email; wastes space at 280px.</dd></dl></section>
+<section class="card"><h3>Front</h3>
+<div class="shots">
+<figure><a href="front-1.png"><img loading="lazy" src="front-1.png" alt="Front: homepage, &quot;stay in control&quot; image"></a><figcaption>homepage, &quot;stay in control&quot; image · <a href="https://front.com">source</a></figcaption></figure>
+</div>
+<div class="steal"><b>Steal:</b> Approve / Discard / Edit on the item itself: a sign-off is one tap.</div><dl>
+<dt>At rest</dt><dd>AI-suggested actions as cards: title, quoted proposal, <code>Needs info / check first · 19 replies</code>, then <code>Approve / Discard / Edit manually</code>.</dd><dt>On hover / open</dt><dd>Buttons are always visible on the card.</dd><dt>Quieting</dt><dd>Done cards fade behind with a check.</dd><dt>Density (~800px)</dt><dd>~3 cards.</dd><dt class="short">Falls short</dt><dd>Cards are tall; only the top item fits a sidebar.</dd></dl></section>
+<section class="card"><h3>Missive</h3>
+<div class="shots">
+<figure><a href="missive-1.png"><img loading="lazy" src="missive-1.png" alt="Missive: list crop, missiveapp.com"></a><figcaption>list crop, missiveapp.com · <a href="https://cdn.prod.website-files.com/66c7823b4706f4a0a95d2d31/69c41cd3b235ee600732da9c_2603-img-sharedinbox.png">source</a></figcaption></figure>
+<figure><a href="missive-2.png"><img loading="lazy" src="missive-2.png" alt="Missive: full app"></a><figcaption>full app · <a href="https://missiveapp.com">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> A third line that shows the next to-do, not the preview.</div><dl>
+<dt>At rest</dt><dd>Sender + time, subject, a third line with the open task (<code>[ ] Follow up with Sarah</code>) and a label; checklist progress <code>0/2</code>.</dd><dt>On hover / open</dt><dd>Conversation + team chat in the reading pane.</dd><dt>Quieting</dt><dd>Colored left border per team; <code>Today</code> / <code>Yesterday</code> headers.</dd><dt>Density (~800px)</dt><dd>~10 rows.</dd><dt class="short">Falls short</dt><dd>Four kinds of metadata per row; busy.</dd></dl></section>
+<section class="card"><h3>Gmail, Slack Activity, Notion inbox</h3>
+<p class="none">No usable public image captured: Gmail not attempted for lack of time; Slack&#x27;s help-center images did not load headless; Notion&#x27;s inbox help page only has an illustration.</p></section>
+</div>
+<h2 id="calm">Calm lists</h2><div class="grid">
+<section class="card"><h3>Things 3</h3>
+<div class="shots">
+<figure><a href="things-1.png"><img loading="lazy" src="things-1.png" alt="Things 3: Today, culturedcode.com/things/features/"></a><figcaption>Today, culturedcode.com/things/features/ · <a href="https://static.culturedcode.com/things/videos/2017-05-18-website-videos/2-today-mac.png">source</a></figcaption></figure>
+<figure><a href="things-2.png"><img loading="lazy" src="things-2.png" alt="Things 3: Headings"></a><figcaption>Headings · <a href="https://static.culturedcode.com/things/videos/2017-05-18-website-videos/4-headings-mac.png">source</a></figcaption></figure>
+</div>
+<div class="hint" style="padding:0 14px">2 images, swipe →</div>
+<div class="steal"><b>Steal:</b> A circle you tick: clearing is a physical gesture on the row.</div><dl>
+<dt>At rest</dt><dd>Checkbox + title; project in tiny gray below; one red <code>today</code> flag where it matters.</dd><dt>On hover / open</dt><dd>Notes/checklists open in place.</dd><dt>Quieting</dt><dd><code>This Evening</code> section lowers the rest of the day without hiding it.</dd><dt>Density (~800px)</dt><dd>~16 rows.</dd><dt class="short">Falls short</dt><dd>No status beyond done/not done.</dd></dl></section>
+<section class="card"><h3>Raycast</h3>
+<div class="shots">
+<figure><a href="raycast-1.png"><img loading="lazy" src="raycast-1.png" alt="Raycast: Reminders extension image on raycast.com"></a><figcaption>Reminders extension image on raycast.com · <a href="https://www.raycast.com">source</a></figcaption></figure>
+</div>
+<div class="steal"><b>Steal:</b> Header + count inline in one line, tiny and gray.</div><dl>
+<dt>At rest</dt><dd>Section header + count (<code>Overdue 1 reminder</code>, <code>Today</code>, <code>Upcoming Oct 29</code>); one-line rows with a muted accessory on the right.</dd><dt>On hover / open</dt><dd>Action panel on ⌘K.</dd><dt>Quieting</dt><dd>Headers do the ranking; rows are identical.</dd><dt>Density (~800px)</dt><dd>~24 rows.</dd><dt class="short">Falls short</dt><dd>Keyboard-first; no touch affordance.</dd></dl></section>
+<section class="card"><h3>Arc, Height</h3>
+<p class="none">Arc: arc.net is now a farewell page and its help center sits behind a Cloudflare check headless. Height: shut down, height.app unreachable. Skipped.</p></section>
+</div>
+<h2 id="directions">Directions for a 280px Inbox</h2><div class="grid">
+<section class="card dir"><h3>A. Paper<span class="tag">Quietest</span></h3><div class="bet">Quiet wins: an inbox you can glance at without it shouting.</div><div class="from">from HEY Imbox + Linear fading + Codex</div><div class="thumbs">
+<a href="hey-1.png"><img loading="lazy" src="hey-1.png" alt="hey-1.png"></a>
+<a href="linear-1.png"><img loading="lazy" src="linear-1.png" alt="linear-1.png"></a>
+<a href="codex-1.png"><img loading="lazy" src="codex-1.png" alt="codex-1.png"></a>
+</div><div class="spec">Two sections by background, not badges: <b>New for you</b> (white, 6px accent dot) and <b>Seen</b> (gray band, text at 60%). Row = 2 lines at 13/12px: title, then a muted reason (<code>asked you a question</code>, <code>finished · +120 −8 · tests ✓</code>). Time right. No chips, no icons. Running work is one gray line at the very bottom: <code>4 running</code>. Verify lives in the opened thread.</div></section>
+<section class="card dir"><h3>B. Ask chips<span class="tag">Medium</span></h3><div class="bet">Say what the thread wants in words, and color only that word.</div><div class="from">from Plannotator + Jules + Devin</div><div class="thumbs">
+<a href="plannotator-1.png"><img loading="lazy" src="plannotator-1.png" alt="plannotator-1.png"></a>
+<a href="jules-1.png"><img loading="lazy" src="jules-1.png" alt="jules-1.png"></a>
+<a href="devin-1.png"><img loading="lazy" src="devin-1.png" alt="devin-1.png"></a>
+</div><div class="spec">Sections named by need with counts (<code>Needs your answer 2</code>, <code>Broken 1</code>, <code>Ready to verify 5</code>, <code>FYI 3</code>). Row = 2 lines: project · age, then a small chip (red Blocked, amber Approve plan, green Verify) + title. Only tiers 1–2 get saturated color; Verify chips are outlined, FYI rows have none.</div></section>
+<section class="card dir"><h3>C. Count tabs<span class="tag">Dense</span></h3><div class="bet">Show one tier at a time; the counts are the overview.</div><div class="from">from Superhuman Split Inbox + Linear Priority/Other + Copilot Active/Done</div><div class="thumbs">
+<a href="superhuman-1.png"><img loading="lazy" src="superhuman-1.png" alt="superhuman-1.png"></a>
+<a href="linear-1.png"><img loading="lazy" src="linear-1.png" alt="linear-1.png"></a>
+<a href="copilot-2.png"><img loading="lazy" src="copilot-2.png" alt="copilot-2.png"></a>
+</div><div class="spec">Segmented text strip at the top: <code>Needs you 3 · Verify 5 · FYI 2</code> (current one bold). One-line 28px rows below: status glyph + title + age; diffstat (<code>+120 −8</code>) right-aligned on Verify rows. ~25 rows in 800px. Running = count in the strip (<code>· 4 running</code>), never rows.</div></section>
+<section class="card dir"><h3>D. Shelves<span class="tag">Quiet</span></h3><div class="bet">Keep one flat queue; push everything that isn&#x27;t for you into counted shelves at the foot.</div><div class="from">from Amp buckets + T3 shelves + Cursor In progress/Older</div><div class="thumbs">
+<a href="amp-1.png"><img loading="lazy" src="amp-1.png" alt="amp-1.png"></a>
+<a href="t3code-1.png"><img loading="lazy" src="t3code-1.png" alt="t3code-1.png"></a>
+<a href="cursor-1.png"><img loading="lazy" src="cursor-1.png" alt="cursor-1.png"></a>
+</div><div class="spec">Flat list ranked by tier, one line each, a 6px tier dot. Pinned to the bottom: <code>Running 4 ›</code>, <code>Snoozed 2 ›</code>, <code>Verified today 6 ›</code> as 28px muted rows that expand in place. The queue scrolls; the shelves never do.</div></section>
+<section class="card dir"><h3>E. Top card<span class="tag">Loudest</span></h3><div class="bet">Put the next sign-off in your hand; the rest wait as a stack.</div><div class="from">from Front approve cards + HEY Reply Later stack + Conductor Ready to merge</div><div class="thumbs">
+<a href="front-1.png"><img loading="lazy" src="front-1.png" alt="front-1.png"></a>
+<a href="hey-3.png"><img loading="lazy" src="hey-3.png" alt="hey-3.png"></a>
+<a href="conductor-2.png"><img loading="lazy" src="conductor-2.png" alt="conductor-2.png"></a>
+</div><div class="spec">The top item renders as a card: title, reason, evidence lines (<code>+120 −8 · 3 files</code>, <code>checks ✓</code>, <code>2 children done</code>) and buttons <code>Verify</code> / <code>Later</code> / <code>Open</code>. Below it, the rest as one-line rows, slightly stacked. Verify advances to the next card; <code>Inbox zero</code> when empty.</div></section>
+<section class="card dir"><h3>F. Just dots (control)<span class="tag">Quietest</span></h3><div class="bet">Maybe no new visual language is needed: the Threads row plus a dot is enough.</div><div class="from">from Factory + Sculptor + Claude Code</div><div class="thumbs">
+<a href="factory-1.png"><img loading="lazy" src="factory-1.png" alt="factory-1.png"></a>
+<a href="sculptor-1.png"><img loading="lazy" src="sculptor-1.png" alt="sculptor-1.png"></a>
+<a href="claude-code-1.png"><img loading="lazy" src="claude-code-1.png" alt="claude-code-1.png"></a>
+</div><div class="spec">Inbox = the Threads row component, filtered to items, one line, with a colored 6px dot and a muted reason word at the end (<code>answer</code>, <code>failed</code>, <code>verify</code>). Nothing else changes. The cheapest build and the baseline the others must beat.</div></section>
+</div></main></body></html>
