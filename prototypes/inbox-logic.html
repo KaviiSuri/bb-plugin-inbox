@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE · Inbox logic</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --accent: #3451d1;
+    --accent-soft: #eef1fc;
+    --ink: #1b1d22;
+    --muted: #6b7080;
+    --line: #e3e5ea;
+    --bg: #fafafb;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+  header { padding: 20px 28px 14px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header .tag { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  header h1 { margin: 2px 0 6px; font-size: 22px; font-weight: 650; }
+  header p { margin: 0; max-width: 980px; color: #3c404a; }
+  header p.q { font-size: 16px; color: var(--ink); margin-bottom: 6px; }
+  .settings { display: flex; flex-wrap: wrap; gap: 18px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: var(--card); align-items: flex-start; }
+  .setting { display: flex; flex-direction: column; gap: 4px; }
+  .setting .label { font-size: 12px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; background: var(--card); padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; color: var(--ink); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: white; }
+  .clock { margin-left: auto; text-align: right; }
+  .clock .t { font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 600; }
+  main { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 160px); }
+  aside { border-right: 1px solid var(--line); background: var(--card); padding: 16px 18px 40px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tabs button { flex: 1; border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 6px; font: inherit; cursor: pointer; }
+  .tabs button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .wt-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+  .wt-list button { text-align: left; border: 1px solid transparent; background: none; border-radius: 6px; padding: 6px 8px; font: inherit; cursor: pointer; }
+  .wt-list button:hover { background: var(--bg); }
+  .wt-list button.on { border-color: var(--line); background: var(--accent-soft); font-weight: 600; }
+  .wt-desc { font-size: 13px; color: #3c404a; margin: 0 0 8px; }
+  .wt-watch { font-size: 13px; padding: 8px 10px; background: var(--bg); border-left: 3px solid var(--accent); margin: 0 0 12px; }
+  .steps { display: flex; flex-direction: column; gap: 6px; counter-reset: s; }
+  .step { display: flex; gap: 8px; align-items: flex-start; }
+  .step .n { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1px solid var(--line); font-size: 11px; display: grid; place-items: center; color: var(--muted); margin-top: 5px; }
+  .step.done .n { background: var(--ink); color: white; border-color: var(--ink); }
+  .step.next .n { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .step button { flex: 1; text-align: left; font: inherit; padding: 6px 9px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
+  .step.next button { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .step.done button { color: var(--muted); }
+  .step .note { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .restart { margin-top: 12px; font: inherit; font-size: 13px; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
+  .fp-sel { font-size: 13px; padding: 8px 10px; background: var(--accent-soft); border-radius: 6px; margin-bottom: 12px; }
+  .fp-group { margin-bottom: 12px; }
+  .fp-group h4 { margin: 0 0 5px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .fp-group .btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .btn { font: inherit; font-size: 13px; padding: 5px 9px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); cursor: pointer; color: var(--ink); }
+  .btn:hover { border-color: #c5c9d3; }
+  .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn.ghost { background: none; }
+  .state { padding: 16px 22px 40px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .happened { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .happened.refused { border: 2px solid var(--ink); }
+  .happened h3 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .happened .what { font-size: 15px; font-weight: 600; }
+  .happened ul { margin: 6px 0 0; padding-left: 18px; color: #3c404a; }
+  .cols { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.25fr) minmax(250px, 1fr); gap: 14px; align-items: start; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .panel > h2 { margin: 0 0 2px; font-size: 15px; }
+  .panel > .sub { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+  .thread { border-radius: 7px; padding: 7px 8px; cursor: pointer; border: 1px solid transparent; }
+  .thread:hover { background: var(--bg); }
+  .thread.sel { border-color: var(--accent); }
+  .thread .ttl { font-weight: 600; }
+  .thread .id { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  .thread .facts { font-size: 12px; color: #3c404a; margin-top: 2px; }
+  .thread .facts div { margin-top: 1px; }
+  .thread .facts code { color: var(--muted); font-size: 11px; }
+  .children { margin-left: 14px; border-left: 1px solid var(--line); padding-left: 6px; }
+  .chg { background: var(--accent-soft) !important; }
+  .chg-tag { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 700; margin-left: 6px; }
+  .running { display: flex; align-items: baseline; gap: 10px; padding: 9px 11px; border-radius: 8px; background: var(--bg); margin-bottom: 12px; }
+  .running .num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .running .who { font-size: 12px; color: var(--muted); }
+  .tier-h { margin: 12px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
+  .item { border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; margin-bottom: 8px; }
+  .item.tier1 { border-left: 4px solid var(--accent); }
+  .item .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .item .tier { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+  .item .ttl { font-weight: 650; font-size: 15px; margin: 1px 0 3px; }
+  .item .why { margin: 0; padding-left: 16px; font-size: 13px; }
+  .item .back { font-size: 12px; margin: 6px 0 0; padding: 6px 8px; background: var(--accent-soft); border-radius: 6px; }
+  .ev { margin-top: 7px; font-size: 12.5px; border-top: 1px dashed var(--line); padding-top: 6px; }
+  .ev .row { display: flex; gap: 6px; margin-top: 2px; }
+  .ev .k { color: var(--muted); width: 70px; flex: none; }
+  .ev .hid { color: var(--muted); font-style: italic; }
+  .item .acts { display: flex; gap: 6px; margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 10px 0; }
+  .seenband { margin-top: 12px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 8px; font-size: 13px; }
+  .seenband .item { opacity: .75; margin: 6px 0 0; }
+  .log { font-size: 12.5px; }
+  .log .entry { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .log .entry:last-child { border-bottom: 0; }
+  .log .entry .h { font-weight: 600; }
+  .log .entry .m { color: var(--muted); font-size: 12px; }
+  .events { font-size: 12px; color: #3c404a; max-height: 260px; overflow: auto; }
+  .events div { padding: 2px 0; }
+  .events .ref { font-weight: 700; color: var(--ink); }
+  .events .t { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">Prototype · throwaway · issue #4 · branch prototype/inbox-logic</div>
+  <h1>Inbox logic: push real cases through it</h1>
+  <p class="q"><b>The question:</b> does this inbox model feel right when you push real cases through it?</p>
+  <p>Fake agent threads on the left. The middle shows the inbox they produce: one item per thread, ranked by tier, with running work collapsed to a count. Clearing an item means you <b>verified</b> the work, and the log on the right records it. Pick a walkthrough, or poke at any thread in free play. The three settings below are open questions: flip them mid-walkthrough and watch what moves.</p>
+</header>
+
+<div class="settings" id="settings"></div>
+
+<main>
+  <aside id="controls"></aside>
+  <section class="state">
+    <div id="happened"></div>
+    <div class="cols">
+      <div class="panel"><h2>Threads</h2><p class="sub">The fake agents, as a tree. Click one to aim free-play buttons at it. Grey names are the real <code>experimental_useSidebarThreads()</code> fields.</p><div id="tree"></div></div>
+      <div class="panel"><h2>Inbox</h2><p class="sub">What the Inbox tab would show, top to bottom.</p><div id="inbox"></div></div>
+      <div class="panel"><h2>Verification log</h2><p class="sub">Every sign-off: who, when, and the evidence it covered.</p><div id="vlog" class="log"></div>
+        <h2 style="margin-top:16px;font-size:14px">Everything that happened</h2><div id="events" class="events"></div></div>
+    </div>
+  </section>
+</main>
+
+<!-- ======================================================================
+     THE MODEL. Pure, no DOM. Liftable into the real plugin.
+     deriveInbox(threads, verifications, settings, now) -> view
+     reduce(state, action) -> state
+     ====================================================================== -->
+<script>
+const InboxModel = (() => {
+  const TIER_NAMES = { 1: 'Blocked on you', 2: 'Broken', 3: 'Verify', 4: 'FYI' };
+  // PluginSidebarThread.status values that mean "still working".
+  const RUNNING_STATUSES = new Set(['active', 'starting', 'stopping', 'pending']);
+  const INTERACTION_LABELS = {
+    approval: 'your permission',
+    user_question: 'an answer to its question',
+    plan: 'a plan review',
+  };
+
+  // Who a thread talks to. Top-level threads always talk to you.
+  // Declared at spawn wins; inference is the fallback.
+  function audienceOf(t) {
+    if (!t.parentThreadId) return { audience: 'human', why: 'top-level thread' };
+    if (t.declaredAudience) return { audience: t.declaredAudience, why: 'set when it was spawned' };
+    if (t.hasPendingInteraction && t.interactionKind === 'user_question')
+      return { audience: 'human', why: 'guessed: it asked you a question' };
+    if (t.usedGrillingSkill) return { audience: 'human', why: 'guessed: it used the grilling skill' };
+    if (t.turnEnd === 'question') return { audience: 'human', why: 'guessed: it ended a turn with a question' };
+    return { audience: 'parent', why: 'guessed: nothing it did was aimed at you' };
+  }
+
+  // The thread whose inbox item this thread shows up on.
+  function itemOwnerId(threads, t, settings) {
+    let cur = t;
+    while (cur.parentThreadId && threads[cur.parentThreadId]) {
+      if (settings.childRouting === 'own-item' && audienceOf(cur).audience === 'human') return cur.id;
+      cur = threads[cur.parentThreadId];
+    }
+    return cur.id;
+  }
+
+  function lastRecord(verifications, threadId, kind) {
+    for (let i = verifications.length - 1; i >= 0; i--) {
+      const v = verifications[i];
+      if (v.threadId === threadId && v.kind === kind) return v;
+    }
+    return null;
+  }
+
+  // One thread's own condition, from deterministic signals only.
+  function ownState(t, now, settings) {
+    if (t.hasPendingInteraction)
+      return { kind: 'needs', tier: 1, reason: `Waiting for ${INTERACTION_LABELS[t.interactionKind] || 'you'}` };
+    if (t.status === 'error') return { kind: 'needs', tier: 2, reason: `Stopped with an error: ${t.error}` };
+    if (RUNNING_STATUSES.has(t.status)) return { kind: 'running' };
+    if (t.pr && t.pr.checks === 'failing') return { kind: 'needs', tier: 2, reason: `PR #${t.pr.number} checks are failing` };
+    // The one model-classified signal: did the turn end with a question or a report?
+    if (t.turnEnd === 'question') return { kind: 'needs', tier: 1, reason: 'Ended its turn with a question for you' };
+    // Grace only applies to a plain finish; needing you skips it.
+    if (t.stoppedAt != null && now - t.stoppedAt < settings.graceMs) return { kind: 'settling' };
+    if (t.turnEnd === 'report') return { kind: 'done' };
+    return { kind: 'quiet' };
+  }
+
+  function deriveInbox(threads, verifications, settings, now) {
+    const all = Object.values(threads);
+    const running = [];
+    const ownerOf = {};
+    const folded = {};
+    for (const t of all) {
+      const s = ownState(t, now, settings);
+      if (s.kind === 'running' || s.kind === 'settling')
+        running.push({ threadId: t.id, title: t.title, settling: s.kind === 'settling' });
+      const o = itemOwnerId(threads, t, settings);
+      ownerOf[t.id] = o;
+      if (o !== t.id) (folded[o] = folded[o] || []).push(t);
+    }
+
+    const items = [], seen = [], cleared = [];
+    for (const owner of all) {
+      if (ownerOf[owner.id] !== owner.id) continue;
+      const own = ownState(owner, now, settings);
+      const v = lastRecord(verifications, owner.id, 'verified');
+      const s = lastRecord(verifications, owner.id, 'seen');
+
+      const reasons = [], notes = [], escalations = [], childSummaries = [];
+      let attentionAt = owner.attentionAt;
+      if (own.kind === 'needs') reasons.push(own.reason);
+      for (const c of folded[owner.id] || []) {
+        const cs = ownState(c, now, settings);
+        const aud = audienceOf(c).audience;
+        const name = `“${c.title}”`;
+        if (cs.kind === 'needs' && cs.tier === 1) {
+          // A real UI prompt (permission, question form) needs a human whatever the audience.
+          if (c.hasPendingInteraction || aud === 'human') {
+            escalations.push(1); reasons.push(`Child ${name}: ${cs.reason.toLowerCase()}`);
+            attentionAt = Math.max(attentionAt, c.attentionAt);
+          } else notes.push(`Child ${name} asked its parent a question. The parent answers it.`);
+        } else if (cs.kind === 'needs' && cs.tier === 2) {
+          if (aud === 'human') {
+            escalations.push(2); reasons.push(`Child ${name}: ${cs.reason.toLowerCase()}`);
+            attentionAt = Math.max(attentionAt, c.attentionAt);
+          } else notes.push(`Child ${name} hit a problem. Its parent is expected to handle it.`);
+        } else if (cs.kind === 'running' || cs.kind === 'settling') {
+          notes.push(`Child ${name} is still running.`);
+        }
+        if (c.turnEnd === 'report' && c.workSeq > 0 && cs.kind !== 'running') {
+          const isNew = !v || c.workSeq > (v.childSeqs[c.id] || 0);
+          childSummaries.push({ threadId: c.id, title: c.title, summary: c.reportSummary, seq: c.workSeq, isNew });
+        }
+      }
+
+      const needTiers = [...(own.kind === 'needs' ? [own.tier] : []), ...escalations];
+      const newWork = !v || owner.workSeq > v.workSeq || childSummaries.some(c => c.isNew);
+      const scoped = settings.comeBack === 'scoped' && !!v;
+      const commits = scoped ? owner.commits.filter(c => c.seq > v.workSeq) : owner.commits;
+      const kids = scoped ? childSummaries.filter(c => c.isNew) : childSummaries;
+      const evidence = {
+        commits,
+        hiddenCommits: owner.commits.length - commits.length,
+        tests: commits.length ? owner.tests : null,
+        pr: owner.pr,
+        childSummaries: kids,
+        hiddenChildSummaries: childSummaries.length - kids.length,
+      };
+      const hasEvidence = commits.length > 0 || kids.length > 0 || (owner.pr && owner.pr.checks === 'passing' && newWork);
+
+      let tier, band = 'inbox';
+      if (needTiers.length) {
+        tier = Math.min(...needTiers);
+      } else if (own.kind === 'running' || own.kind === 'settling') {
+        continue;
+      } else if (own.kind === 'done' || (own.kind === 'quiet' && childSummaries.length)) {
+        if (!newWork) { cleared.push({ threadId: owner.id, title: owner.title, verifiedAt: v.at }); continue; }
+        const seenSinceWork = s && (!v || s.at > v.at) && s.workSeq === owner.workSeq &&
+          childSummaries.every(c => c.seq <= (s.childSeqs[c.threadId] || 0));
+        if (seenSinceWork) band = 'seen';
+        tier = commits.length || (owner.pr && newWork) ? 3 : 4;
+        if (tier === 3) reasons.push(v ? 'Finished more work since you verified it' : 'Finished, with changes to check');
+        else if (kids.length) reasons.push(`Summary of ${kids.length} child thread${kids.length > 1 ? 's' : ''}`);
+        else reasons.push(owner.commits.length ? 'Reported back, but changed nothing new' : 'Reported back, nothing changed');
+      } else continue;
+
+      const item = {
+        threadId: owner.id, title: owner.title, tier, tierName: TIER_NAMES[tier],
+        reasons, notes, evidence, hasEvidence, ownerRunning: own.kind === 'running' || own.kind === 'settling',
+        back: v && newWork ? { verifiedAt: v.at, baseSha: v.baseSha, scoped } : null,
+        attentionAt, band,
+      };
+      (band === 'seen' ? seen : items).push(item);
+    }
+    const byTier = (a, b) => a.tier - b.tier || b.attentionAt - a.attentionAt;
+    items.sort(byTier); seen.sort(byTier);
+    return { items, seen, cleared, running, ownerOf };
+  }
+
+  // Why a sign-off is refused, or null if it's allowed.
+  function whyCannotClear(view, threads, threadId, kind, settings) {
+    const t = threads[threadId];
+    if (kind === 'seen' && settings.clearing !== 'verify-or-seen')
+      return '“Mark seen” is switched off. Under “verify only”, the only way out of the inbox is a sign-off.';
+    const item = view.items.concat(view.seen).find(i => i.threadId === threadId);
+    if (!item) {
+      if (view.ownerOf[threadId] !== threadId)
+        return `“${t.title}” has no item of its own. It folds into “${threads[view.ownerOf[threadId]].title}”, so sign off there.`;
+      const r = view.running.find(r => r.threadId === threadId);
+      if (r && r.settling) return `“${t.title}” only just finished. It stays in the running count for a 2-second grace, so a quick follow-up doesn't make it flicker in and out.`;
+      if (r) return `“${t.title}” is still running. You can only sign off on finished work.`;
+      if (view.cleared.find(c => c.threadId === threadId)) return `“${t.title}” is already verified, and it hasn't done anything since.`;
+      return `“${t.title}” isn't in the inbox.`;
+    }
+    if (item.tier === 1) return `“${t.title}” is waiting for you. Answer it first; signing off doesn't answer a question.`;
+    if (item.tier === 2) return `“${t.title}” is broken. You can't sign off on a failure; restart or fix it.`;
+    if (kind === 'verified' && !item.hasEvidence)
+      return `There's nothing to verify on “${t.title}”: no changes, tests, PR or child summaries${item.back && item.back.scoped ? ' since your last sign-off' : ''}.`;
+    if (kind === 'seen' && item.band === 'seen') return `“${t.title}” is already marked seen.`;
+    return null;
+  }
+
+  // ---------- events ----------
+  function sha(id, seq) {
+    let h = 2166136261;
+    for (const ch of id + ':' + seq) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+    return h.toString(16).padStart(8, '0').slice(0, 7);
+  }
+  const FILES = ['app/settings.tsx', 'server/auth.ts', 'lib/theme.ts', 'app/login.tsx', 'tests/auth.test.ts', 'docs/README.md', 'lib/billing.ts'];
+
+  function initialState(settings) {
+    return {
+      now: 9 * 3600 * 1000,
+      nextId: 1,
+      threads: {},
+      verifications: [],
+      settings: { childRouting: 'own-item', clearing: 'verify-only', comeBack: 'scoped', graceMs: 2000, ...settings },
+      log: [],
+      lastRefusal: null,
+    };
+  }
+
+  function newThread(state, title, parentThreadId, declaredAudience) {
+    const id = 't' + state.nextId++;
+    state.threads[id] = {
+      id, title, parentThreadId: parentThreadId || null, declaredAudience: declaredAudience || null,
+      status: 'active', hasPendingInteraction: false, interactionKind: null, turnEnd: null,
+      usedGrillingSkill: false, commits: [], tests: null, pr: null, error: null, workSeq: 0,
+      reportSummary: null, stoppedAt: null, attentionAt: state.now,
+    };
+    return id;
+  }
+
+  function reduce(prev, action) {
+    const state = structuredClone(prev);
+    state.lastRefusal = null;
+    if (action.type !== 'settingChanged') state.now += action.type === 'timePassed' ? action.ms : 1000;
+    const t = action.threadId ? state.threads[action.threadId] : null;
+    const log = (text, refused) => state.log.push({ at: state.now, text, refused: !!refused });
+    const refuse = reason => { state.lastRefusal = { action, reason }; log('Refused: ' + reason, true); return state; };
+    const stop = () => { t.status = 'idle'; t.stoppedAt = state.now; t.attentionAt = state.now; t.workSeq += 1; };
+    const isRunning = () => RUNNING_STATUSES.has(t.status) && !t.hasPendingInteraction;
+
+    switch (action.type) {
+      case 'threadStarted': {
+        const id = newThread(state, action.title || `Task ${state.nextId}`);
+        log(`You started “${state.threads[id].title}”. It's running.`);
+        return state;
+      }
+      case 'childSpawned': {
+        const p = state.threads[action.parentId];
+        const id = newThread(state, action.title || `Child of ${p.title}`, p.id, action.audience);
+        const aud = action.audience === 'human' ? 'talks to you' : action.audience === 'parent' ? 'works for its parent' : 'audience not set';
+        log(`“${p.title}” spawned a child, “${state.threads[id].title}” (${aud}).`);
+        return state;
+      }
+      case 'workResumed':
+        if (isRunning()) return refuse(`“${t.title}” is already running.`);
+        Object.assign(t, { status: 'active', hasPendingInteraction: false, interactionKind: null, turnEnd: null, error: null, stoppedAt: null });
+        if (t.pr) t.pr.checks = 'pending';
+        log(`“${t.title}” started working again.`);
+        return state;
+      case 'interactionRequested':
+        if (t.hasPendingInteraction) return refuse(`“${t.title}” is already waiting for you.`);
+        Object.assign(t, { status: 'active', hasPendingInteraction: true, interactionKind: action.kind, turnEnd: null, error: null, attentionAt: state.now });
+        if (action.kind === 'user_question' && t.parentThreadId && !t.declaredAudience) t.usedGrillingSkill = t.usedGrillingSkill || false;
+        log(`“${t.title}” paused and is waiting for ${INTERACTION_LABELS[action.kind]}.`);
+        return state;
+      case 'interactionAnswered':
+        if (!t.hasPendingInteraction && t.turnEnd !== 'question') return refuse(`“${t.title}” isn't waiting for an answer.`);
+        Object.assign(t, { hasPendingInteraction: false, interactionKind: null, status: 'active', turnEnd: null, stoppedAt: null });
+        log(`You answered “${t.title}”. It carries on.`);
+        return state;
+      case 'turnEndedWithQuestion':
+        if (!isRunning()) return refuse(`“${t.title}” isn't running, so it has no turn to end.`);
+        stop(); t.turnEnd = 'question';
+        log(`“${t.title}” finished its turn with a question (the cheap model read it as a question).`);
+        return state;
+      case 'turnEndedWithReport': {
+        if (!isRunning()) return refuse(`“${t.title}” isn't running, so it has no turn to end.`);
+        stop(); t.turnEnd = 'report';
+        t.reportSummary = action.summary || (action.withDiff ? 'Made the change and ran the tests.' : 'Looked into it and wrote up what it found.');
+        if (action.withDiff) {
+          const seq = t.workSeq, n = 1 + (seq + t.id.length) % 3;
+          const files = Array.from({ length: n }, (_, i) => FILES[(seq * 2 + i + t.id.charCodeAt(1)) % FILES.length]);
+          t.commits.push({ seq, sha: sha(t.id, seq), files, insertions: 12 * seq + 8 * n, deletions: 3 * n, summary: action.commitSummary || `Change ${t.commits.length + 1}` });
+          t.tests = { passed: 10 + 4 * t.commits.length, failed: 0, stub: true };
+        }
+        log(`“${t.title}” finished its turn with a report${action.withDiff ? ' and a diff' : ', no diff'}.`);
+        return state;
+      }
+      case 'errored':
+        Object.assign(t, { status: 'error', hasPendingInteraction: false, error: action.error || 'the provider crashed', stoppedAt: state.now, attentionAt: state.now });
+        log(`“${t.title}” hit an error.`);
+        return state;
+      case 'usedGrillingSkill':
+        t.usedGrillingSkill = true;
+        log(`“${t.title}” loaded the grilling skill.`);
+        return state;
+      case 'prChecks':
+        if (!t.commits.length) return refuse(`“${t.title}” has no changes, so there's no PR to check.`);
+        if (!t.pr) t.pr = { number: 40 + state.nextId + t.commits.length, checks: 'pending' };
+        t.pr.checks = action.result;
+        if (action.result === 'failing') t.attentionAt = state.now;
+        log(`PR #${t.pr.number} for “${t.title}”: checks ${action.result === 'failing' ? 'failed' : 'passed'}.`);
+        return state;
+      case 'timePassed':
+        log(`${action.ms / 1000} seconds passed.`);
+        return state;
+      case 'settingChanged':
+        state.settings[action.key] = action.value;
+        log(`Setting changed: ${SETTING_LABELS[action.key].title} → ${SETTING_LABELS[action.key].options[action.value]}.`);
+        return state;
+      case 'verified':
+      case 'markedSeen': {
+        const kind = action.type === 'verified' ? 'verified' : 'seen';
+        const view = deriveInbox(state.threads, state.verifications, state.settings, state.now);
+        const why = whyCannotClear(view, state.threads, t.id, kind, state.settings);
+        if (why) return refuse(why);
+        const item = view.items.concat(view.seen).find(i => i.threadId === t.id);
+        const childSeqs = {};
+        for (const c of Object.values(state.threads)) if (view.ownerOf[c.id] === t.id && c.id !== t.id) childSeqs[c.id] = c.workSeq;
+        const head = t.commits[t.commits.length - 1];
+        state.verifications.push({
+          id: 'v' + (state.verifications.length + 1), threadId: t.id, kind, at: state.now,
+          by: 'this bb client', // no user identity reaches a plugin
+          baseSha: head ? head.sha : null, workSeq: t.workSeq, childSeqs,
+          evidence: structuredClone(item.evidence), scope: item.back ? (item.back.scoped ? 'only what changed since last sign-off' : 'everything') : 'everything',
+        });
+        log(kind === 'verified' ? `You verified “${t.title}”.` : `You marked “${t.title}” as seen. It is not verified.`);
+        return state;
+      }
+    }
+    return state;
+  }
+
+  const SETTING_LABELS = {
+    childRouting: { title: 'A child that talks to you', options: { 'own-item': 'gets its own item', 'on-parent': 'shows on its parent’s item' } },
+    clearing: { title: 'Clearing an item', options: { 'verify-only': 'verify only', 'verify-or-seen': 'verify, or mark seen' } },
+    comeBack: { title: 'A verified thread that does more work comes back', options: { scoped: 'showing only what’s new', whole: 'showing everything' } },
+  };
+
+  return { deriveInbox, reduce, initialState, whyCannotClear, audienceOf, ownState, TIER_NAMES, SETTING_LABELS, RUNNING_STATUSES, INTERACTION_LABELS };
+})();
+</script>
+
+<!-- ======================================================================
+     THE PAGE. Throwaway shell over the model.
+     ====================================================================== -->
+<script>
+const M = InboxModel;
+const fmt = ms => { const s = Math.floor(ms / 1000); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(n => String(n).padStart(2, '0')).join(':'); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// Build a known starting state by replaying events silently.
+function build(actions, settings) {
+  let s = M.initialState(settings);
+  for (const a of actions) s = M.reduce(s, a);
+  s.log = [{ at: s.now, text: 'Walkthrough reset to its starting point.' }];
+  s.lastRefusal = null;
+  return s;
+}
+
+const WALKTHROUGHS = [
+  {
+    id: 'happy', title: '1 · Happy path',
+    desc: 'One agent is adding a dark-mode toggle. It finishes with a diff and passing tests. You check the evidence and sign off.',
+    watch: 'The thread goes from the running count, to Verify, to gone. The log keeps a record of what you signed off on.',
+    setup: () => build([{ type: 'threadStarted', title: 'Add dark-mode toggle' }]),
+    steps: [
+      { label: 'The agent finishes with a report and a diff', action: { type: 'turnEndedWithReport', threadId: 't1', withDiff: true, commitSummary: 'Add theme switch to settings' }, note: 'It stays in the running count for a short grace.' },
+      { label: 'Let 2 seconds pass', action: { type: 'timePassed', ms: 2000 }, note: 'Now it lands in Verify, with its evidence.' },
+      { label: 'Verify it (sign off)', action: { type: 'verified', threadId: 't1' }, note: 'The item clears and the log records it.' },
+    ],
+  },
+  {
+    id: 'audience', title: '2 · Who a child talks to',
+    desc: 'A planning thread spawns two children. One researches for its parent. The other grills you on pricing. They should land in different places.',
+    watch: 'The research child never gets its own item; its summary shows up on the parent. The grilling child gets its own item at the top. At step 5, flip the routing and see its question move onto the parent.',
+    setup: () => build([{ type: 'threadStarted', title: 'Plan the billing migration' }]),
+    steps: [
+      { label: 'Spawn a research child that works for its parent', action: { type: 'childSpawned', parentId: 't1', audience: 'parent', title: 'Research billing providers' } },
+      { label: 'Spawn a grilling child that talks to you', action: { type: 'childSpawned', parentId: 't1', audience: 'human', title: 'Grill you on pricing tiers' } },
+      { label: 'The research child finishes with a report', action: { type: 'turnEndedWithReport', threadId: 't2', withDiff: false, summary: 'Compared Stripe, Paddle and Lemon Squeezy. Recommends Stripe Billing.' }, note: 'No item: its parent is still running and reads this itself.' },
+      { label: 'The grilling child asks you a question', action: { type: 'interactionRequested', threadId: 't3', kind: 'user_question' }, note: 'Its own item, tier 1.' },
+      { label: 'Flip: a child that talks to you shows on its parent’s item', action: { type: 'settingChanged', key: 'childRouting', value: 'on-parent' }, note: 'T3 Code does this. The parent becomes the tier-1 item, even though it is still running.' },
+      { label: 'Flip back: it gets its own item', action: { type: 'settingChanged', key: 'childRouting', value: 'own-item' } },
+      { label: 'You answer the grilling child', action: { type: 'interactionAnswered', threadId: 't3' } },
+      { label: 'The grilling child finishes with a report', action: { type: 'turnEndedWithReport', threadId: 't3', withDiff: false, summary: 'You picked three tiers: Free, Team, Business.' }, note: 'After the grace it becomes its own FYI with no evidence. Under “verify only” it can never leave (see walkthrough 5).' },
+      { label: 'The parent finishes with a summary', action: { type: 'turnEndedWithReport', threadId: 't1', withDiff: false, summary: 'Migration plan drafted.' } },
+      { label: 'Let 2 seconds pass', action: { type: 'timePassed', ms: 2000 }, note: 'The parent becomes an FYI that carries the research summary as its evidence.' },
+      { label: 'Verify the parent’s FYI', action: { type: 'verified', threadId: 't1' } },
+    ],
+  },
+  {
+    id: 'comeback', title: '3 · Verified, then more work',
+    desc: 'You verified a login fix. Then you ask the agent for one more change. When does it come back, and what does it show?',
+    watch: 'While it runs again, it is not in the inbox. It comes back when it finishes, marked “Back”. Flip “comes back showing…” to compare only-the-new-commit with everything.',
+    setup: () => build([
+      { type: 'threadStarted', title: 'Fix the login redirect' },
+      { type: 'turnEndedWithReport', threadId: 't1', withDiff: true, commitSummary: 'Redirect to the page you came from' },
+      { type: 'timePassed', ms: 2000 },
+    ]),
+    steps: [
+      { label: 'Verify the first fix', action: { type: 'verified', threadId: 't1' } },
+      { label: 'Ask it for one more change (it starts working)', action: { type: 'workResumed', threadId: 't1' }, note: 'Running again: not back yet.' },
+      { label: 'It finishes with another diff', action: { type: 'turnEndedWithReport', threadId: 't1', withDiff: true, commitSummary: 'Keep query params on redirect' } },
+      { label: 'Let 2 seconds pass', action: { type: 'timePassed', ms: 2000 }, note: 'Back in Verify, showing only the new commit.' },
+      { label: 'Flip: comes back showing everything', action: { type: 'settingChanged', key: 'comeBack', value: 'whole' }, note: 'Now both commits show, including the one you already checked.' },
+      { label: 'Flip back: only what’s new', action: { type: 'settingChanged', key: 'comeBack', value: 'scoped' } },
+      { label: 'Verify the new change', action: { type: 'verified', threadId: 't1' } },
+      { label: 'Later, the PR checks fail', action: { type: 'prChecks', threadId: 't1', result: 'failing' }, note: 'It comes back as Broken, even though you verified it.' },
+      { label: 'It fixes the checks and finishes again, with no new diff', actions: [{ type: 'workResumed', threadId: 't1' }, { type: 'turnEndedWithReport', threadId: 't1', withDiff: false, summary: 'Re-ran the flaky check.' }, { type: 'prChecks', threadId: 't1', result: 'passing' }, { type: 'timePassed', ms: 2000 }], note: 'Back with no new commits. The only fresh evidence is the green PR.' },
+    ],
+  },
+  {
+    id: 'running', title: '4 · Five at once',
+    desc: 'You kick off five agents. None of them needs you yet, so the inbox should stay quiet.',
+    watch: 'Five running threads are one number, not five rows. A finished thread waits out a short grace; an error or a question jumps straight in.',
+    setup: () => build([]),
+    steps: [
+      { label: 'Start five threads', actions: ['Write the changelog', 'Bump dependencies', 'Fix the flaky upload test', 'Add CSV export', 'Translate the onboarding'].map(title => ({ type: 'threadStarted', title })), note: 'Inbox is empty. Running: 5.' },
+      { label: '“Fix the flaky upload test” finishes with a diff', action: { type: 'turnEndedWithReport', threadId: 't3', withDiff: true, commitSummary: 'Wait for upload before asserting' }, note: 'Still counted as running, for the grace.' },
+      { label: '“Translate the onboarding” hits an error', action: { type: 'errored', threadId: 't5', error: 'rate limited by the provider' }, note: 'Broken right away. No grace.' },
+      { label: 'Let 2 seconds pass', action: { type: 'timePassed', ms: 2000 }, note: 'The upload fix lands in Verify.' },
+      { label: '“Write the changelog” asks your permission', action: { type: 'interactionRequested', threadId: 't1', kind: 'approval' }, note: 'Jumps to the top, tier 1.' },
+    ],
+  },
+  {
+    id: 'illegal', title: '5 · Things that shouldn’t work',
+    desc: 'Try to sign off on things that aren’t ready: a thread still running, one waiting on you, one with nothing to verify, a child that folds into its parent.',
+    watch: 'Each attempt is refused, with the reason in plain words at the top. Step 5 shows the risk of “verify only”: a report with no evidence can never leave.',
+    setup: () => build([
+      { type: 'threadStarted', title: 'Refactor the settings page' },
+      { type: 'threadStarted', title: 'Look into the flaky CI job' },
+      { type: 'turnEndedWithReport', threadId: 't2', withDiff: false, summary: 'Couldn’t reproduce it. Probably a runner hiccup.' },
+      { type: 'childSpawned', parentId: 't1', audience: 'parent', title: 'Read the settings code' },
+      { type: 'timePassed', ms: 2000 },
+    ]),
+    steps: [
+      { label: 'Try to verify the refactor while it’s running', action: { type: 'verified', threadId: 't1' } },
+      { label: 'The refactor sends a plan for review', action: { type: 'interactionRequested', threadId: 't1', kind: 'plan' } },
+      { label: 'Try to verify it now', action: { type: 'verified', threadId: 't1' }, note: 'Waiting on you is not something you sign off.' },
+      { label: 'Try to verify the research child', action: { type: 'verified', threadId: 't3' } },
+      { label: 'Try to verify the CI report (no evidence)', action: { type: 'verified', threadId: 't2' }, note: 'Nothing to check, so nothing to sign. It is stuck in FYI.' },
+      { label: 'Turn on “verify, or mark seen”', action: { type: 'settingChanged', key: 'clearing', value: 'verify-or-seen' } },
+      { label: 'Mark the CI report as seen', action: { type: 'markedSeen', threadId: 't2' }, note: 'It leaves the list for the “seen, not verified” band.' },
+    ],
+  },
+  {
+    id: 'seen', title: '6 · Seen is not verified',
+    desc: 'With “mark seen” switched on, you glance at a finished diff and mark it seen instead of verifying. Then the agent does more work.',
+    watch: 'Seen doesn’t move the baseline. When the thread comes back, it shows every unverified change, not just the newest.',
+    setup: () => build([
+      { type: 'threadStarted', title: 'Add rate limiting' },
+      { type: 'turnEndedWithReport', threadId: 't1', withDiff: true, commitSummary: 'Token bucket per API key' },
+      { type: 'timePassed', ms: 2000 },
+    ], { clearing: 'verify-or-seen' }),
+    steps: [
+      { label: 'Mark it seen (not verified)', action: { type: 'markedSeen', threadId: 't1' } },
+      { label: 'Ask it for one more change', action: { type: 'workResumed', threadId: 't1' } },
+      { label: 'It finishes with another diff', actions: [{ type: 'turnEndedWithReport', threadId: 't1', withDiff: true, commitSummary: 'Return Retry-After header' }, { type: 'timePassed', ms: 2000 }] },
+      { label: 'Verify both changes at once', action: { type: 'verified', threadId: 't1' } },
+    ],
+  },
+];
+
+const FREE_SEED = () => build([
+  { type: 'threadStarted', title: 'Ship the onboarding flow' },
+  { type: 'childSpawned', parentId: 't1', audience: 'parent', title: 'Audit the copy' },
+  { type: 'childSpawned', parentId: 't1', audience: null, title: 'Check analytics events' },
+  { type: 'threadStarted', title: 'Upgrade to React 20' },
+  { type: 'turnEndedWithReport', threadId: 't4', withDiff: true, commitSummary: 'Bump react and fix types' },
+  { type: 'threadStarted', title: 'Answer the support ticket' },
+  { type: 'turnEndedWithQuestion', threadId: 't5' },
+  { type: 'timePassed', ms: 2000 },
+]);
+
+let ui = { mode: 'walk', walkId: 'happy', stepIdx: 0, selected: 't1' };
+let state = WALKTHROUGHS[0].setup();
+let prev = { view: null, threads: null, vcount: 0, logLen: state.log.length };
+
+function view() { return M.deriveInbox(state.threads, state.verifications, state.settings, state.now); }
+
+function dispatch(actions) {
+  const before = view();
+  prev = { view: before, threads: structuredClone(state.threads), vcount: state.verifications.length, logLen: state.log.length, running: before.running.length };
+  for (const a of [].concat(actions)) state = M.reduce(state, a);
+  render();
+}
+
+function reset(newState) {
+  state = newState;
+  prev = { view: null, threads: null, vcount: state.verifications.length, logLen: state.log.length };
+  render();
+}
+
+// ---------- rendering ----------
+function renderSettings() {
+  const el = document.getElementById('settings');
+  el.innerHTML = Object.entries(M.SETTING_LABELS).map(([key, def]) => `
+    <div class="setting"><span class="label">${esc(def.title)}</span>
+      <div class="seg">${Object.entries(def.options).map(([v, l]) =>
+        `<button class="${state.settings[key] === v ? 'on' : ''}" data-set="${key}" data-val="${v}">${esc(l)}</button>`).join('')}</div>
+    </div>`).join('') + `<div class="clock"><div class="label" style="font-size:12px;color:var(--muted)">Fake clock</div><div class="t">${fmt(state.now)}</div></div>`;
+  el.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
+    if (state.settings[b.dataset.set] !== b.dataset.val) dispatch({ type: 'settingChanged', key: b.dataset.set, value: b.dataset.val });
+  });
+}
+
+function threadFacts(t, v) {
+  const s = M.ownState(t, state.now, state.settings);
+  const facts = [];
+  const statusWord = { active: 'running', idle: 'finished', error: 'error' }[t.status] || t.status;
+  if (s.kind === 'settling') facts.push(`Just finished, in grace <code>status: idle</code>`);
+  else facts.push(`${t.hasPendingInteraction ? 'Paused' : statusWord[0].toUpperCase() + statusWord.slice(1)} <code>status: ${t.status}</code>`);
+  if (t.hasPendingInteraction) facts.push(`Waiting for ${M.INTERACTION_LABELS[t.interactionKind]} <code>hasPendingInteraction: true</code>`);
+  if (t.status === 'idle' && t.turnEnd) facts.push(`Last turn ended with ${t.turnEnd === 'question' ? 'a question' : 'a report'} <code>model: ${t.turnEnd}</code>`);
+  if (t.status === 'error') facts.push(`Error: ${esc(t.error)}`);
+  if (t.parentThreadId) {
+    const a = M.audienceOf(t);
+    facts.push(`${a.audience === 'human' ? 'Talks to you' : 'Works for its parent'} (${a.why}) <code>pluginMetadata.audience${t.declaredAudience ? '' : ' unset'}</code>`);
+  }
+  if (t.commits.length) facts.push(`${t.commits.length} commit${t.commits.length > 1 ? 's' : ''}, head ${t.commits[t.commits.length - 1].sha} <code>bb--git status</code>`);
+  if (t.pr) facts.push(`PR #${t.pr.number}, checks ${t.pr.checks} <code>bb--github-pr-status</code>`);
+  const owner = v.ownerOf[t.id];
+  if (owner !== t.id) facts.push(`Shows on “${esc(state.threads[owner].title)}”’s item`);
+  return facts.map(f => `<div>${f}</div>`).join('');
+}
+
+function renderTree(v) {
+  const kids = {};
+  const roots = [];
+  for (const t of Object.values(state.threads)) {
+    if (t.parentThreadId) (kids[t.parentThreadId] = kids[t.parentThreadId] || []).push(t); else roots.push(t);
+  }
+  const node = t => {
+    const changed = prev.threads && JSON.stringify(prev.threads[t.id]) !== JSON.stringify(t);
+    const fresh = prev.threads && !prev.threads[t.id];
+    return `<div class="thread ${ui.selected === t.id ? 'sel' : ''} ${changed ? 'chg' : ''}" data-sel="${t.id}">
+      <div><span class="ttl">${esc(t.title)}</span><span class="id mono">${t.id}</span>${fresh ? '<span class="chg-tag">new</span>' : changed ? '<span class="chg-tag">changed</span>' : ''}</div>
+      <div class="facts">${threadFacts(t, v)}</div></div>
+      ${kids[t.id] ? `<div class="children">${kids[t.id].map(node).join('')}</div>` : ''}`;
+  };
+  const el = document.getElementById('tree');
+  el.innerHTML = roots.length ? roots.map(node).join('') : '<div class="empty">No threads yet.</div>';
+  el.querySelectorAll('[data-sel]').forEach(d => d.onclick = e => { e.stopPropagation(); ui.selected = d.dataset.sel; render(); });
+}
+
+function evidenceHtml(item) {
+  const e = item.evidence, rows = [];
+  if (e.commits.length) {
+    const ins = e.commits.reduce((a, c) => a + c.insertions, 0), del = e.commits.reduce((a, c) => a + c.deletions, 0);
+    const files = new Set(e.commits.flatMap(c => c.files));
+    rows.push(['Changes', `${e.commits.length} commit${e.commits.length > 1 ? 's' : ''}, +${ins} −${del} in ${files.size} file${files.size > 1 ? 's' : ''}<br>` +
+      e.commits.map(c => `<span class="mono">${c.sha}</span> ${esc(c.summary)}`).join('<br>')]);
+  }
+  if (e.hiddenCommits) rows.push(['', `<span class="hid">${e.hiddenCommits} commit${e.hiddenCommits > 1 ? 's' : ''} you already verified, hidden</span>`]);
+  if (e.tests) rows.push(['Tests', `${e.tests.passed} passed, ${e.tests.failed} failed <span class="hid">(stub: no SDK source for tests)</span>`]);
+  if (e.pr) rows.push(['PR', `#${e.pr.number}, checks ${e.pr.checks}`]);
+  if (e.childSummaries.length) rows.push(['Children', e.childSummaries.map(c => `<b>${esc(c.title)}:</b> ${esc(c.summary)}`).join('<br>')]);
+  if (e.hiddenChildSummaries) rows.push(['', `<span class="hid">${e.hiddenChildSummaries} child summar${e.hiddenChildSummaries > 1 ? 'ies' : 'y'} you already verified, hidden</span>`]);
+  if (!rows.length) rows.push(['', '<span class="hid">No evidence to show.</span>']);
+  return `<div class="ev">${rows.map(([k, val]) => `<div class="row"><span class="k">${k}</span><span>${val}</span></div>`).join('')}</div>`;
+}
+
+function itemHtml(item) {
+  const p = prev.view && prev.view.items.concat(prev.view.seen).find(i => i.threadId === item.threadId);
+  const tag = !prev.view ? '' : !p ? 'new' : (p.tier !== item.tier || p.band !== item.band) ? 'moved' : JSON.stringify(p) !== JSON.stringify(item) ? 'changed' : '';
+  const canVerify = !M.whyCannotClear(view(), state.threads, item.threadId, 'verified', state.settings);
+  const seenOn = state.settings.clearing === 'verify-or-seen' && item.band !== 'seen' && item.tier >= 3;
+  return `<div class="item tier${item.tier} ${tag ? 'chg' : ''}">
+    <div class="top"><span class="tier">${item.tier} · ${esc(item.tierName)}</span>${tag ? `<span class="chg-tag">${tag}</span>` : ''}</div>
+    <div class="ttl">${esc(item.title)}</div>
+    <ul class="why">${item.reasons.map(r => `<li>${esc(r)}</li>`).join('')}${item.ownerRunning ? '<li>(The thread itself is still running.)</li>' : ''}${item.notes.map(n => `<li style="color:var(--muted)">${esc(n)}</li>`).join('')}</ul>
+    ${item.back ? `<div class="back"><b>Back.</b> You verified this at ${fmt(item.back.verifiedAt)}${item.back.baseSha ? ` (up to ${item.back.baseSha})` : ''}. ${item.back.scoped ? 'Showing only what changed since.' : 'Showing everything again.'}</div>` : ''}
+    ${item.tier >= 3 ? evidenceHtml(item) : ''}
+    <div class="acts">
+      ${item.tier >= 3 ? `<button class="btn ${canVerify ? 'primary' : ''}" data-verify="${item.threadId}">Verify</button>` : ''}
+      ${seenOn ? `<button class="btn" data-seen="${item.threadId}">Mark seen</button>` : ''}
+      ${item.tier <= 2 ? `<button class="btn" data-resolve="${item.threadId}">${item.tier === 1 ? 'Answer it' : 'Restart it'}</button>` : ''}
+    </div></div>`;
+}
+
+function renderInbox(v) {
+  const runCount = v.running.length;
+  const prevCount = prev.view ? prev.view.running.length : runCount;
+  let html = `<div class="running ${prevCount !== runCount ? 'chg' : ''}"><span class="num">${runCount}</span><div><b>Running</b>${prevCount !== runCount ? `<span class="chg-tag">was ${prevCount}</span>` : ''}<div class="who">${runCount ? v.running.map(r => esc(r.title) + (r.settling ? ' (just finished, in grace)' : '')).join(' · ') : 'Nothing running.'}</div></div></div>`;
+  if (!v.items.length) html += '<div class="empty">Inbox zero. Nothing needs you.</div>';
+  for (const tier of [1, 2, 3, 4]) {
+    const its = v.items.filter(i => i.tier === tier);
+    if (!its.length) continue;
+    html += `<div class="tier-h"><span>${tier} · ${M.TIER_NAMES[tier]}</span><span>${its.length}</span></div>` + its.map(itemHtml).join('');
+  }
+  if (v.seen.length) html += `<div class="seenband"><b>Seen, not verified (${v.seen.length})</b> <span style="color:var(--muted)">Folded away until the thread does more work.</span>${v.seen.map(itemHtml).join('')}</div>`;
+  if (v.cleared.length) html += `<div class="tier-h" style="margin-top:16px"><span>Verified, nothing new</span><span>${v.cleared.length}</span></div><div style="font-size:13px;color:var(--muted)">${v.cleared.map(c => `${esc(c.title)} (at ${fmt(c.verifiedAt)})`).join(' · ')}</div>`;
+  const el = document.getElementById('inbox');
+  el.innerHTML = html;
+  el.querySelectorAll('[data-verify]').forEach(b => b.onclick = () => dispatch({ type: 'verified', threadId: b.dataset.verify }));
+  el.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => dispatch({ type: 'markedSeen', threadId: b.dataset.seen }));
+  el.querySelectorAll('[data-resolve]').forEach(b => b.onclick = () => {
+    const t = state.threads[b.dataset.resolve];
+    const target = t.hasPendingInteraction || t.turnEnd === 'question' || t.status === 'error' || (t.pr && t.pr.checks === 'failing') ? t
+      : Object.values(state.threads).find(c => view().ownerOf[c.id] === t.id && c.id !== t.id && (c.hasPendingInteraction || c.turnEnd === 'question' || c.status === 'error'));
+    if (!target) return;
+    dispatch(target.hasPendingInteraction || target.turnEnd === 'question' ? { type: 'interactionAnswered', threadId: target.id } : { type: 'workResumed', threadId: target.id });
+  });
+}
+
+function renderLog() {
+  const vs = state.verifications;
+  document.getElementById('vlog').innerHTML = vs.length ? vs.slice().reverse().map((r, i) => {
+    const t = state.threads[r.threadId], e = r.evidence, bits = [];
+    if (e.commits.length) bits.push(`${e.commits.map(c => c.sha).join(', ')}`);
+    if (e.tests) bits.push(`tests ${e.tests.passed} passed (stub)`);
+    if (e.pr) bits.push(`PR #${e.pr.number} ${e.pr.checks}`);
+    if (e.childSummaries.length) bits.push(`${e.childSummaries.length} child summar${e.childSummaries.length > 1 ? 'ies' : 'y'}`);
+    const isNew = vs.length - i > prev.vcount;
+    return `<div class="entry ${isNew ? 'chg' : ''}"><div class="h">${r.kind === 'verified' ? 'Verified' : 'Marked seen, not verified'}: ${esc(t.title)}${isNew ? '<span class="chg-tag">new</span>' : ''}</div>
+      <div class="m">By ${r.by}, at ${fmt(r.at)}. No person’s name: bb doesn’t pass one to plugins.</div>
+      <div>Evidence: ${bits.length ? esc(bits.join(' · ')) : 'none'}</div>
+      <div class="m">Scope: ${esc(r.scope)}${r.baseSha ? ` · next baseline: ${r.baseSha}` : ''}</div></div>`;
+  }).join('') : '<div class="empty">Nothing verified yet.</div>';
+  document.getElementById('events').innerHTML = state.log.slice().reverse().map((l, i) =>
+    `<div class="${l.refused ? 'ref' : ''} ${state.log.length - i > prev.logLen ? 'chg' : ''}"><span class="t">${fmt(l.at)}</span>${esc(l.text)}</div>`).join('');
+}
+
+function renderHappened(v) {
+  const el = document.getElementById('happened');
+  const newLogs = state.log.slice(prev.logLen);
+  if (!prev.view || !newLogs.length) { el.innerHTML = `<div class="happened"><h3>What just happened</h3><div class="what">Nothing yet. Press a step or a button.</div></div>`; return; }
+  const p = prev.view, out = [];
+  const key = i => i.threadId;
+  const all = i => i.items.concat(i.seen);
+  for (const it of all(v)) {
+    const was = all(p).find(i => key(i) === key(it));
+    if (!was) out.push(`“${it.title}” entered the inbox as ${it.band === 'seen' ? 'seen, not verified' : `tier ${it.tier}, ${it.tierName}`}.`);
+    else if (was.tier !== it.tier || was.band !== it.band) out.push(`“${it.title}” moved from ${was.band === 'seen' ? 'seen' : `tier ${was.tier}`} to ${it.band === 'seen' ? 'the seen band' : `tier ${it.tier}, ${it.tierName}`}.`);
+  }
+  for (const was of all(p)) {
+    if (all(v).find(i => key(i) === key(was))) continue;
+    const t = state.threads[was.threadId];
+    const why = v.cleared.find(c => c.threadId === was.threadId) ? 'it is verified' : v.running.find(r => r.threadId === was.threadId) ? 'it is running again' : v.ownerOf[was.threadId] !== was.threadId ? `it now shows on “${state.threads[v.ownerOf[was.threadId]].title}”` : 'it no longer needs you';
+    out.push(`“${t.title}” left the inbox: ${why}.`);
+  }
+  if (p.running.length !== v.running.length) out.push(`Running count: ${p.running.length} → ${v.running.length}.`);
+  const refused = state.lastRefusal;
+  el.innerHTML = `<div class="happened ${refused ? 'refused' : ''}"><h3>${refused ? 'Refused' : 'What just happened'}</h3>
+    <div class="what">${esc(refused ? refused.reason : newLogs.map(l => l.text).join(' '))}</div>
+    ${out.length ? `<ul>${out.map(o => `<li>${esc(o)}</li>`).join('')}</ul>` : refused ? '' : '<ul><li>The inbox didn’t change.</li></ul>'}</div>`;
+}
+
+function renderControls() {
+  const el = document.getElementById('controls');
+  let html = `<div class="tabs"><button class="${ui.mode === 'walk' ? 'on' : ''}" data-mode="walk">Walkthroughs</button><button class="${ui.mode === 'free' ? 'on' : ''}" data-mode="free">Free play</button></div>`;
+  if (ui.mode === 'walk') {
+    const w = WALKTHROUGHS.find(w => w.id === ui.walkId);
+    html += `<div class="wt-list">${WALKTHROUGHS.map(x => `<button class="${x.id === ui.walkId ? 'on' : ''}" data-walk="${x.id}">${esc(x.title)}</button>`).join('')}</div>
+      <p class="wt-desc">${esc(w.desc)}</p><p class="wt-watch"><b>Watch for:</b> ${esc(w.watch)}</p>
+      <div class="steps">${w.steps.map((s, i) => `<div class="step ${i < ui.stepIdx ? 'done' : i === ui.stepIdx ? 'next' : ''}">
+        <span class="n">${i + 1}</span><button data-step="${i}">${esc(s.label)}${s.note ? `<span class="note">${esc(s.note)}</span>` : ''}</button></div>`).join('')}</div>
+      ${ui.stepIdx >= w.steps.length ? '<p class="wt-desc" style="margin-top:10px"><b>Done.</b> Keep going in free play, or start over.</p>' : ''}
+      <button class="restart" data-restart>↺ Start this walkthrough over</button>`;
+  } else {
+    const t = state.threads[ui.selected];
+    const B = (label, act, primary) => `<button class="btn ${primary ? 'primary' : ''}" data-act='${esc(JSON.stringify(act))}'>${esc(label)}</button>`;
+    html += `<div class="fp-sel">${t ? `Aiming at <b>${esc(t.title)}</b> <span class="mono" style="color:var(--muted)">${t.id}</span>. Click a thread to change.` : 'Click a thread to aim at it.'}</div>`;
+    html += `<div class="fp-group"><h4>Start work</h4><div class="btns">${B('Start a new thread', { type: 'threadStarted' })}</div></div>`;
+    if (t) {
+      const id = t.id;
+      html += `
+      <div class="fp-group"><h4>This thread spawns a child that…</h4><div class="btns">
+        ${B('talks to you', { type: 'childSpawned', parentId: id, audience: 'human' })}
+        ${B('works for its parent', { type: 'childSpawned', parentId: id, audience: 'parent' })}
+        ${B('has no audience set', { type: 'childSpawned', parentId: id, audience: null })}</div></div>
+      <div class="fp-group"><h4>The agent…</h4><div class="btns">
+        ${B('starts working again', { type: 'workResumed', threadId: id })}
+        ${B('asks your permission', { type: 'interactionRequested', threadId: id, kind: 'approval' })}
+        ${B('asks you a question', { type: 'interactionRequested', threadId: id, kind: 'user_question' })}
+        ${B('sends a plan for review', { type: 'interactionRequested', threadId: id, kind: 'plan' })}
+        ${B('ends its turn with a question', { type: 'turnEndedWithQuestion', threadId: id })}
+        ${B('finishes with a report and a diff', { type: 'turnEndedWithReport', threadId: id, withDiff: true })}
+        ${B('finishes with a report, no diff', { type: 'turnEndedWithReport', threadId: id, withDiff: false })}
+        ${B('hits an error', { type: 'errored', threadId: id })}
+        ${B('uses the grilling skill', { type: 'usedGrillingSkill', threadId: id })}</div></div>
+      <div class="fp-group"><h4>Outside world</h4><div class="btns">
+        ${B('PR checks fail', { type: 'prChecks', threadId: id, result: 'failing' })}
+        ${B('PR checks pass', { type: 'prChecks', threadId: id, result: 'passing' })}</div></div>
+      <div class="fp-group"><h4>You…</h4><div class="btns">
+        ${B('answer it', { type: 'interactionAnswered', threadId: id })}
+        ${B('verify it (sign off)', { type: 'verified', threadId: id }, true)}
+        ${B('mark it seen', { type: 'markedSeen', threadId: id })}</div></div>`;
+    }
+    html += `<div class="fp-group"><h4>Time</h4><div class="btns">${B('Let 2 seconds pass', { type: 'timePassed', ms: 2000 })}</div></div>
+      <button class="restart" data-freereset>↺ Reset free play to the sample threads</button>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+    ui.mode = b.dataset.mode;
+    if (ui.mode === 'free') { ui.selected = 't1'; reset(FREE_SEED()); } else startWalk(ui.walkId);
+  });
+  el.querySelectorAll('[data-walk]').forEach(b => b.onclick = () => startWalk(b.dataset.walk));
+  el.querySelectorAll('[data-step]').forEach(b => b.onclick = () => {
+    const w = WALKTHROUGHS.find(w => w.id === ui.walkId), i = +b.dataset.step;
+    if (i !== ui.stepIdx) {
+      // Jumping: replay from the start up to this step so the state is always the scenario's.
+      state = w.setup();
+      for (let k = 0; k < i; k++) state = [].concat(w.steps[k].actions || w.steps[k].action).reduce(M.reduce, state);
+    }
+    ui.stepIdx = i + 1;
+    const s = w.steps[i];
+    const tid = [].concat(s.actions || s.action)[0].threadId;
+    if (tid) ui.selected = tid;
+    dispatch(s.actions || s.action);
+  });
+  const r = el.querySelector('[data-restart]'); if (r) r.onclick = () => startWalk(ui.walkId);
+  const fr = el.querySelector('[data-freereset]'); if (fr) fr.onclick = () => { ui.selected = 't1'; reset(FREE_SEED()); };
+  el.querySelectorAll('[data-act]').forEach(b => b.onclick = () => dispatch(JSON.parse(b.dataset.act)));
+}
+
+function startWalk(id) {
+  ui.walkId = id; ui.stepIdx = 0; ui.selected = 't1';
+  reset(WALKTHROUGHS.find(w => w.id === id).setup());
+}
+
+function render() {
+  const v = view();
+  renderSettings(); renderControls(); renderHappened(v); renderTree(v); renderInbox(v); renderLog();
+}
+render();
+</script>
+</body>
+</html>
