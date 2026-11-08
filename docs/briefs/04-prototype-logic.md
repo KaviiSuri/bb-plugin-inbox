@@ -2,7 +2,7 @@
 
 Read `docs/briefs/_common.md`, `docs/brief.md`, and the `/prototype` skill's `SKILL.md` and `LOGIC.md` (at `~/.agents/skills/prototype/`) first. Follow LOGIC.md.
 
-**Branch:** `prototype/inbox-logic`, never merged to `main`. **Output:** one file, `prototypes/inbox-logic.html`, that opens by double-click. **Inputs:** `docs/research/prior-art.md`, `docs/research/sdk-surface.md`, `docs/research/thread-list-internals.md` (merge or read them from their `research/*` branches if they aren't on `main` yet: `git fetch && git show origin/research/<name>:docs/research/<file>`).
+**Branch:** `prototype/inbox-logic`, never merged to `main`. **Output:** one file, `prototypes/inbox-logic.html`, that opens by double-click. **Inputs:** `docs/research/prior-art.md`, `docs/research/sdk-surface.md`, `docs/research/thread-list-internals.md` (not on main: read each with `git fetch && git show origin/research/prior-art:docs/research/prior-art.md`, `origin/research/sdk-surface:docs/research/sdk-surface.md`, `origin/research/thread-list-internals:docs/research/thread-list-internals.md`).
 
 ## The question
 
@@ -18,6 +18,20 @@ Read `docs/briefs/_common.md`, `docs/brief.md`, and the `/prototype` skill's `SK
 - **Open question, make it a toggle:** when a verified thread does more work, does its item come back scoped to only the new changes, or whole? Let the user flip it and watch both.
 
 Use the real field names from `docs/research/sdk-surface.md` for the fake threads' signals (e.g. `status`, `hasPendingInteraction`, `parentThreadId`), shown in plain language on the page.
+
+## What the research changed (toggles, not decisions)
+
+The research argues with two decided points. Don't settle them; make each a visible setting the user flips while a walkthrough runs:
+
+- **Child routing:** `human`-audience child gets its own item (our draft) vs. its question shows on the parent's item (T3 Code: subagents get no row, `pendingSubagentRequest` on the parent). `docs/research/prior-art.md`.
+- **Clearing:** verify only (our draft) vs. verify plus a cheap "seen"/snooze that leaves the item unverified. Prior art clears by dismissal everywhere; the risk is rubber-stamping.
+- **Coming back (the open question):** scoped to what changed since the verified diff base vs. whole. Store `verifiedAt` plus the diff base on the verification.
+
+Behaviours to build in as given:
+- A verified thread doesn't come back while it's running again; it comes back when it finishes, asks, or fails (T3 Code snooze wake rules, Plannotator).
+- Running work leaves the running count only after a short grace, skipped when the thread needs you (T3 `WORKING_EXIT_GRACE_MS`).
+- Tier order is ours (Blocked on you above Broken), even though bb-plugin-attention ranks errors first. Show the tier in plain words on each item.
+- No user identity reaches a plugin (`docs/research/sdk-surface.md`), so the log records "verified on this client, at time T", not a person's name. Tests have no SDK source; stub them as evidence.
 
 ## Required shape
 
