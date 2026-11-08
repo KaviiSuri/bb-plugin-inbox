@@ -33,15 +33,25 @@ The human should always know what agents are doing and be able to verify it. Wor
 - Default concurrency is up to 3 in flight, unless the human says otherwise. The human reviews before anything lands on `main`.
 - Put tickets on the bb task board (`bb tasks`, see the tasks skill). Write each brief to a file under `docs/briefs/` and point the spawn prompt at it.
 
-## Process (from /ask-matt)
+## Process (from /ask-matt): prototype-driven
 
-Main flow, multi-session branch:
+The user wants the exploration to be **visual and prototype-driven**. They judge an idea by using it, not by answering questions about it. So prototypes lead, and grilling happens against something they can click.
 
-1. **/research first** (user's choice: research, then grill).
-2. /grill-with-docs, writing CONTEXT.md and ADRs here.
-3. A /prototype detour for the inbox UI.
-4. /to-spec, then /to-tickets.
-5. /implement per ticket.
+Load these skills before acting: `/ask-matt` (routing), `/bb-orchestrate-threads` (how work runs), `/bb-plugin-authoring` (the SDK contract), and `/prototype` (how to build throwaways). Also `/grill-with-docs` when it's time to record decisions.
+
+| Phase | Skill | What it looks like here |
+|---|---|---|
+| 1. Research | `/research`, run as bb child threads | Cited docs in `docs/research/`. It's input, not decisions. Keep it short, and get to prototypes fast. |
+| 2. Logic prototype | `/prototype` → LOGIC.md | One HTML file the user can double-click: the inbox state machine with fake threads. It covers tier ordering, child audience routing (`human` vs. `parent`), clear = verified, a verified thread doing new work and coming back, and running threads collapsing to a count. Free-play buttons plus guided walkthroughs, with the state always visible. |
+| 3. UI prototype | `/prototype` → UI.md | Several radically different Inbox tab designs, switchable by a floating bar. Run them **in the real sidebar** by registering a throwaway `experimental_threadList` provider that reads live `experimental_useSidebarThreads()`, so the user feels it against their own threads. Fixtures are a fallback for states that are hard to reproduce. |
+| 4. Grill against the prototypes | `/grill-with-docs` | Only questions the prototypes raised, each one asked as "variant A vs. B, here's the link". Decisions go into `CONTEXT.md` and `docs/adr/`. |
+| 5. Spec and tickets | `/to-spec` → `/to-tickets` | The fork of `plugins/thread-list` plus the Inbox tab, as tracer-bullet tickets on the bb task board with blocking edges. |
+| 6. Build | `/implement` per ticket, in child threads | TDD inside, `/code-review` before each commit, mutation review by the orchestrator, human review before merge. |
+
+Rules:
+- Every prototype is a bb child thread in its own worktree, on a `prototype/<name>` branch, kept as a primary source and never merged to `main`. The worktree takes the place of `/handoff`.
+- Every prototype comes back with one command to run it, or the steps to switch the sidebar provider to it, plus a screenshot. The orchestrator hands the user a link and a sentence, not a list of questions.
+- Ask the user something only after they've seen the thing it's about.
 
 ## Research questions
 
