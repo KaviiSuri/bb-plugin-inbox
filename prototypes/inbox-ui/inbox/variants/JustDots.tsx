@@ -6,20 +6,19 @@
 // reason word at the end.
 import { cn } from "@/lib/utils";
 import { useFrozenItems, useTouchFreeze, type Classified, type InboxItem } from "../model";
-import { CountedLine, Dot, EmptyNote, Provider, ROW_HEIGHT, RowLink, Title, askTone, rowClass, rowPadding, useInbox } from "../parts";
+import { Dot, EmptyNote, Provider, ROW_HEIGHT, RowLink, Title, askTone, rowClass, rowPadding, useInbox } from "../parts";
 
 export function JustDotsVariant({ data }: { data: Classified }) {
   const { frozen, handlers } = useTouchFreeze();
   const items = useFrozenItems(data.items, frozen);
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex flex-col">
       <div {...handlers}>
         {items.map((item) => (
           <DotRow key={item.id} item={item} />
         ))}
         {items.length === 0 ? <EmptyNote>Nothing for you.</EmptyNote> : null}
       </div>
-      <CountedLine label="running" threads={data.running} className="mt-auto pt-3" />
     </div>
   );
 }

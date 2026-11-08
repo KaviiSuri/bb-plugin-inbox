@@ -3,10 +3,11 @@
 // Linear (read rows fade) and Codex (title + age, no glyphs); see
 // docs/research/visual-prior-art.md, direction A.
 // Row: two lines, title then a muted reason; age right. No chips, no icons.
-// Verify lives in the opened thread (the header's Verify button).
+// Verify lives in the opened thread (the header's Verify button). Running work
+// is the counted line in the footer (app.tsx).
 import { cn } from "@/lib/utils";
 import { diffstat, useFrozenItems, useTouchFreeze, type Classified, type InboxItem } from "../model";
-import { Age, CountedLine, EmptyNote, RowLink, Title, askTone, rowClass, rowPadding, useInbox } from "../parts";
+import { Age, EmptyNote, RowLink, Title, askTone, rowClass, rowPadding, useInbox } from "../parts";
 
 export function PaperVariant({ data }: { data: Classified }) {
   const { frozen, handlers } = useTouchFreeze();
@@ -15,7 +16,7 @@ export function PaperVariant({ data }: { data: Classified }) {
   const seen = items.filter((i) => i.seen);
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex flex-col">
       <div {...handlers}>
         {fresh.length > 0 ? (
           <section>
@@ -35,7 +36,6 @@ export function PaperVariant({ data }: { data: Classified }) {
         ) : null}
         {items.length === 0 ? <EmptyNote>Nothing for you.</EmptyNote> : null}
       </div>
-      <CountedLine label="running" threads={data.running} className="mt-auto pt-3" />
     </div>
   );
 }

@@ -20,16 +20,15 @@ bb client; switch back to "Threads" (`thread-list/thread-list`) the same way.
 ## Use it
 
 - Tabs at the top: **Threads** (a plain tree) | **Inbox**.
-- Bottom bar: `‹ A · Paper ›`, **fx** (fixtures on/off), `…` → reset Verify and Later.
+- Bottom bar: `‹ A · Paper ›` (cycles A, F, G), **fx** (fixtures on/off), `…` → reset Verify and Later.
   Everything is tappable; there are no keyboard shortcuts.
 - Fixtures mix in fake threads: a plan review, a failing PR, a broken thread,
   a grilling child, a parent whose research children reported back, seen
   finished work, five running threads.
-- **Verify** writes `{ verifiedBy, verifiedAt }` to localStorage. D and E have
-  Verify on the item; every variant also gets a **Verify** button in the open
+- **Verify** writes `{ verifiedBy, verifiedAt }` to localStorage. G has Verify on
+  the tapped row; every variant also gets a **Verify** button in the open
   thread's header (shown only in a client whose sidebar is this prototype). The
   item returns when the thread's `latestAttentionAt` passes `verifiedAt`.
-- **Later** (D, E) snoozes until the thread has something new.
 - Order and seen/new state freeze while you touch the list, and for 4 s after a tap.
 
 ## Variants
@@ -38,19 +37,20 @@ Rules held across all six: colour only on what needs you (amber request, red
 broken); running work is one counted line at the bottom, never rows; words over
 icons, at most a diffstat at rest; no hover-only actions; ≥40px rows on touch.
 
+After review the user kept A and F and asked for a blend, G. B–E (Ask chips,
+Count tabs, Shelves, Top card) are at commit `82e9e1d` on this branch.
+
 | Key | Name | Bet |
 |---|---|---|
 | A | Paper | Quietest. New for you / Seen band; two-line row: title, muted reason. Verify in the thread header. |
-| B | Ask chips | Sections named by need; a chip says what it wants, filled only for tiers 1–2. |
-| C | Count tabs | One tier at a time; `Needs you 3 · Verify 6 · FYI 2` is the overview; dense one-line rows. |
-| D | Shelves | One flat queue with dots; tap a row for reason + Verify / Open / Later; Running / Snoozed / Verified today shelves pinned at the foot. |
-| E | Top card | Loudest. The next item as a card with evidence and buttons; the rest a stack of one-line rows. |
 | F | Just dots | Control. The Threads row filtered to items, a dot and one muted word. |
+| G | Paper dots | A's New / Seen structure with F's one-line row; tap a row for its reason line and Verify / Open. |
+
+The running line and the switcher share one sticky footer, so the pill never covers it.
 
 ## Screenshots
 
-`screenshots/<variant>-desktop.png` (sidebar crop at 1280×900) and
-`screenshots/<variant>-phone.png` (390×844, touch, sidebar drawer open), all with
-fixtures on, taken in a headless bb web client that rewrote only its own copy of
-`GET /api/v1/preferences/ui` to pick this list and blocked writes to it, so the
-user's server-synced sidebar choice never changed. D's shots have one row selected.
+`screenshots/{A,F,G}-phone.png` and `G-phone-open.png` (one row tapped open):
+390×844, touch, sidebar drawer open, fixtures on. Taken in a headless bb web
+client that rewrote only its own copy of `GET /api/v1/preferences/ui` to pick
+this list and blocked writes to it, so the user's sidebar choice never changed.

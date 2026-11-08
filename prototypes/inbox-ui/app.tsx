@@ -26,23 +26,19 @@ import {
   type Verification,
 } from "./inbox/model";
 import { useEvidence } from "./inbox/evidence";
-import { InboxContext, type InboxContextValue } from "./inbox/parts";
+import { CountedLine, InboxContext, type InboxContextValue } from "./inbox/parts";
 import { SidebarDataContext } from "./inbox/sidebar-data";
 import { ThreadsTab } from "./inbox/ThreadsTab";
 import { PaperVariant } from "./inbox/variants/Paper";
-import { AskChipsVariant } from "./inbox/variants/AskChips";
-import { CountTabsVariant } from "./inbox/variants/CountTabs";
-import { ShelvesVariant } from "./inbox/variants/Shelves";
-import { TopCardVariant } from "./inbox/variants/TopCard";
 import { JustDotsVariant } from "./inbox/variants/JustDots";
+import { PaperDotsVariant } from "./inbox/variants/PaperDots";
 
+// B–E (Ask chips, Count tabs, Shelves, Top card) were cut after review; they
+// live at commit 82e9e1d on this branch.
 const VARIANTS = [
   { key: "A", name: "Paper" },
-  { key: "B", name: "Ask chips" },
-  { key: "C", name: "Count tabs" },
-  { key: "D", name: "Shelves" },
-  { key: "E", name: "Top card" },
   { key: "F", name: "Just dots" },
+  { key: "G", name: "Paper dots" },
 ] as const;
 type VariantKey = (typeof VARIANTS)[number]["key"];
 
@@ -123,20 +119,21 @@ function InboxPrototypeList({ activeThreadId, onNavigate }: PluginThreadListProp
               <ThreadsTab />
             ) : variant === "A" ? (
               <PaperVariant data={data} />
-            ) : variant === "B" ? (
-              <AskChipsVariant data={data} />
-            ) : variant === "C" ? (
-              <CountTabsVariant data={data} />
-            ) : variant === "D" ? (
-              <ShelvesVariant data={data} />
-            ) : variant === "E" ? (
-              <TopCardVariant data={data} />
-            ) : (
+            ) : variant === "F" ? (
               <JustDotsVariant data={data} />
+            ) : (
+              <PaperDotsVariant data={data} />
             )}
           </div>
 
-          <Switcher variant={variant} onCycle={cycle} fixturesOn={fixturesOn} onFixtures={() => setFixturesOn((on) => !on)} onReset={reset} />
+          {/* One sticky footer holds the running line and the switcher, so the
+              pill can never sit on top of the running line. */}
+          <div className="sticky bottom-0 z-30 bg-sidebar">
+            {tab === "inbox" ? (
+              <CountedLine label="running" threads={data.running} className="max-h-[40vh] overflow-y-auto border-t border-border-hairline px-1 pt-1" />
+            ) : null}
+            <Switcher variant={variant} onCycle={cycle} fixturesOn={fixturesOn} onFixtures={() => setFixturesOn((on) => !on)} onReset={reset} />
+          </div>
         </div>
       </InboxContext.Provider>
     </SidebarDataContext.Provider>
@@ -178,7 +175,7 @@ function Switcher({
   const current = VARIANTS.find((v) => v.key === variant)!;
   const btn = "flex h-6 items-center justify-center rounded-full max-md:pointer-coarse:h-10";
   return (
-    <div className="sticky bottom-0 z-30 flex justify-center bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent px-2 pt-1 pb-1.5">
+    <div className="flex justify-center px-2 pt-1 pb-1.5">
       <div className="relative flex items-center whitespace-nowrap rounded-full bg-foreground/90 px-0.5 text-[11px] text-background shadow-md">
         <button type="button" aria-label="Previous variant" onClick={() => onCycle(-1)} className={cn(btn, "w-6 hover:bg-background/20 max-md:pointer-coarse:w-10")}>
           <Icon name="ChevronLeft" className="size-3.5" />
@@ -224,7 +221,7 @@ export default definePluginApp((app) => {
   app.slots.experimental_threadList({
     id: "inbox-prototype",
     title: "Inbox prototype",
-    description: "PROTOTYPE (issue #5): Threads | Inbox tabs with six switchable Inbox directions.",
+    description: "PROTOTYPE (issue #5): Threads | Inbox tabs with three switchable Inbox designs.",
     component: InboxPrototypeList,
   });
   // "Verify lives in the opened thread": a header button, shown only in a

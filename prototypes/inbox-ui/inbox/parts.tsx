@@ -127,8 +127,12 @@ export function Provider({ thread, className }: { thread: PluginSidebarThread; c
 /** Live threads render bb's ThreadTitle (mention chips); fixtures, plain text. */
 export function Title({ thread, className }: { thread: PluginSidebarThread; className?: string }) {
   return (
-    <span className={cn("bb-thread-title min-w-0 truncate", className)} title={thread.displayTitle}>
-      {thread.id.startsWith("fx-") ? thread.displayTitle : <ThreadTitle threadId={thread.id} />}
+    // The inner block truncates, so plain-text fixture titles end in "…" too
+    // instead of clipping against the next element.
+    <span className={cn("bb-thread-title min-w-0 overflow-hidden", className)} title={thread.displayTitle}>
+      <span className="block truncate">
+        {thread.id.startsWith("fx-") ? thread.displayTitle : <ThreadTitle threadId={thread.id} />}
+      </span>
     </span>
   );
 }
