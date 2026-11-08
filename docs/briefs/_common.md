@@ -9,3 +9,4 @@ Read these before your own brief.
 - **No bb task board.** Work is tracked in GitHub Issues on KaviiSuri/bb-plugin-inbox (`docs/agents/issue-tracker.md`). Comment your result on your issue with `gh issue comment <n>`; don't close it, the orchestrator does that after review.
 - **Cite primary sources.** Source code (repo URL + path + line, or a local absolute path + line), official docs, installed SDK types. Mark anything you infer instead of read as *inferred*.
 - **Report** in your final message: the branch, the commit sha, the files you wrote, and the 3 to 6 findings that matter most for the prototypes. Keep it under 25 lines.
+- **Reviewable on a phone.** The user often reviews from their phone over Tailscale, inside bb. Every page you hand back must read and work at 390px wide: one column, no horizontal scroll, tap targets at least 40px, nothing that needs hover or a keyboard. Check it at 390x844 in a headless session and include that screenshot.
