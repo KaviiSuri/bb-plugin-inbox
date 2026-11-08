@@ -22,7 +22,7 @@ The human should always know what agents are doing and be able to verify it. Wor
   - The fork has to be made standalone. Its imports of `@/components/ui/*` and `@/lib/utils` are bb's vendored UI (see the "vendored components" section of the bb-plugin-authoring frontend-hooks-and-ui reference, and what `bb plugin new` scaffolds). Its `workspace:*` dependencies (`@bb/shared-ui`, `@bb/plugin-build`, `@get-bb/plugin-sdk`) need to be swapped for published or vendored equivalents.
   - Pin the upstream commit you fork from, so upstream changes can be merged in later.
 - **Follow `/bb-plugin-authoring`** (the BB skill) for the SDK contract, starting with the `frontend-registration.md` reference. The slot is `app.slots.experimental_threadList`, the one exclusive slot; users pick a provider under Settings → Appearance → Sidebar. `experimental_useSidebarThreads()` returns threads with `parentThreadId`, `parentNotifications`, `lifecycleOwnerThreadId`, `sourceThreadId`, `status`/`runtimeStatus`, `queuedWork`, `hasPendingInteraction`, `isUnread`, `lastReadAt`, `latestAttentionAt`, `indicator`, `environment { isWorktree, branchName, path }` and more. Most of the inbox's deterministic signals are already there.
-- **Secondary prior art only:** T3 Sidebar (SawyerHood, MIT; `~/.bb/plugins/cache/git/github.com/SawyerHood/sawyer-plugins/8b535729dd2251ceb293c7caf74e43e477f942a3/plugins/t3sidebar/`) is an inbox-style replacement for the same slot. Borrow ideas from it (stable order, status inside the card), not code.
+- **"T3 sidebar" means the sidebar in the T3 Code app**, open source at https://github.com/pingdotgg/t3code (MIT). It is *not* the SawyerHood `t3sidebar` BB plugin. Ignore that plugin entirely; it is not prior art for us.
 - **`bb-plugin-attention`** (npm, installed, v0.1.5) already computes "threads that need your attention" (errors, pending input, unread turns). Source: `~/.bb/plugins/cache/npm/bb-plugin-attention/0.1.5/`. It's prior art for the classifier.
 - The user's `~/code/KaviiSuri/bb-plugin-goal` shows the house layout for a plugin repo.
 
@@ -55,8 +55,8 @@ Rules:
 
 ## Research questions
 
-1. **Prior art:** the T3 Code app's sidebar (the real T3 Code, not the BB plugin), Plannotator's inbox, Conductor, Linear's inbox, GitHub notifications, Superhuman / inbox-zero triage, and any other agent-orchestration "attention queue" UIs. For each: what counts as an item, how items are ordered, what clears an item, and how noise is kept down.
+1. **Prior art:** the T3 Code app's sidebar (https://github.com/pingdotgg/t3code, read its source), Plannotator's inbox, Conductor, Linear's inbox, GitHub notifications, Superhuman / inbox-zero triage, and any other agent-orchestration "attention queue" UIs. For each: what counts as an item, how items are ordered, what clears an item, and how noise is kept down.
 2. **The BB Plugin SDK, via /bb-plugin-authoring:** confirm the `experimental_threadList` and `experimental_useSidebarThreads` fields against the installed SDK types (`bb plugin types`), and find what server-side hooks, events and storage exist to persist verification state and compute inbox items.
-3. **Upstream `thread-list` internals** (get-bb/bb `plugins/thread-list`): how it builds the tree (children, worktree grouping, sections), its state and storage, where an Inbox tab can slot in, and exactly what forking it standalone takes (vendored UI, workspace deps, build). Skim T3 Sidebar for inbox ideas only.
+3. **Upstream `thread-list` internals** (get-bb/bb `plugins/thread-list`): how it builds the tree (children, worktree grouping, sections), its state and storage, where an Inbox tab can slot in, and exactly what forking it standalone takes (vendored UI, workspace deps, build).
 4. **bb-plugin-attention:** its signals and its logic.
 5. **What thread metadata a spawner can set**, so a child's audience can be declared at spawn time.
