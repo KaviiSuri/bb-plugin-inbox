@@ -84,6 +84,7 @@ function renderInbox(
     output: `Report from ${threadId}`,
   }));
   const keysOf = (input: unknown) => (input as { keys: string[] }).keys;
+  const statusKeys: string[] = [];
   const none = (input: unknown) =>
     Object.fromEntries(keysOf(input).map((key) => [key, null]));
   const slot = renderSlot(registration, props(), {
@@ -100,12 +101,13 @@ function renderInbox(
       inboxStart: () => ({ startedAt: 0 }),
       verifications: none,
       laters: none,
-      status: (input: unknown) =>
+      status: (input: unknown) => (
+        statusKeys.push(...keysOf(input)),
         Object.fromEntries(
-          keysOf(input).map((key) => [key, { outcome: "available", workspace: { allChanges: null } }]),
-        ),
+          keysOf(input).map((key) => [key, { outcome: "not_applicable" }]),
+        )),
       pullRequests: (input: unknown) =>
-        Object.fromEntries(keysOf(input).map((key) => [key, { outcome: "available", pullRequest: null }])),
+        Object.fromEntries(keysOf(input).map((key) => [key, { outcome: "absent" }])),
     },
     sdk: {
       threads: {
@@ -119,7 +121,7 @@ function renderInbox(
       },
     },
   });
-  return { slot, output };
+  return { slot, output, statusKeys };
 }
 
 afterEach(() => {
@@ -173,6 +175,27 @@ describe("Inbox: child Audience on the opened row", () => {
     expect(slot.inspection.navigateCalls).toEqual([
       { method: "toThread", threadId: "thr_r2" },
     ]);
+  });
+
+  it("reads evidence for the parent's environment, never for a folded child's own", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const env = (id: string) => ({
+      id,
+      name: id,
+      branchName: id,
+      path: `/work/${id}`,
+      isWorktree: true,
+      providerId: null,
+      workspaceDisplayKind: null,
+    });
+    const { statusKeys } = renderInbox([
+      { ...PARENT, environment: env("env_parent"), lastReadAt: 0 },
+      child("thr_r1", "Research: Stripe", { environment: env("env_child") }),
+    ]);
+
+    await screen.findByRole("button", { name: "Build billing: fyi" });
+    expect(statusKeys).toContain("env_parent");
+    expect(statusKeys).not.toContain("env_child");
   });
 
   it("asks to approve on the parent once it stopped, with Open helper going to the waiting child", async () => {

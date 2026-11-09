@@ -105,7 +105,8 @@ const MAX_EVIDENCE_KEYS = 200;
 
 /**
  * Evidence for the environments of threads that could be Verify or FYI:
- * stopped, not waiting on the human, not already verified, and with work
+ * stopped, not waiting on the human, not folded into a parent (a child),
+ * not already verified, and with work
  * after the Inbox started (none until that start has loaded). An
  * environment is in the result once both its git status and its pull request
  * have answered (or their read failed), so the model can hold back until then.
@@ -116,10 +117,14 @@ function useEvidence(
   inboxStartedAt: number | null,
 ): Readonly<Record<string, EnvironmentEvidence>> {
   const keys = useMemo(() => {
+    const visibleIds = new Set(visible.map((t) => t.id));
     const candidates = visible
       .filter(
         (t) =>
           t.environment?.id &&
+          // A child without a pending interaction folds into its parent's
+          // item, so its own evidence is never shown.
+          !(t.parentThreadId && visibleIds.has(t.parentThreadId)) &&
           !isRunning(t) &&
           !t.hasPendingInteraction &&
           inboxStartedAt !== null &&
