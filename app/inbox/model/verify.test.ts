@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Verification } from "../../../shared/inbox-verification.js";
-import { deriveInbox } from "./index.js";
+import { deriveInbox, STOP_GRACE_MS } from "./index.js";
 import {
   DIFF,
   environment,
   makeSidebarThread,
+  NOW,
   pullRequest,
   QUESTION,
   snapshot,
@@ -104,6 +105,24 @@ describe("deriveInbox: Verify vs FYI by evidence", () => {
     );
     expect(view.newForYou).toEqual([]);
     expect(view.running.map((r) => r.threadId)).toEqual(["thr_v"]);
+  });
+
+  it("holds a thread that just stopped with evidence in the running count for the grace, not as Verify", () => {
+    const view = deriveInbox(
+      snapshot({
+        threads: [finished()],
+        evidence: { env_a: DIFF },
+        runtime: {
+          running: {},
+          stoppedAt: { thr_v: NOW - STOP_GRACE_MS + 1 },
+          waitingForHostSince: {},
+        },
+      }),
+    );
+    expect(view.newForYou).toEqual([]);
+    expect(view.running).toEqual([
+      expect.objectContaining({ threadId: "thr_v", settling: true }),
+    ]);
   });
 
   it("orders Verify after Broken and before FYI", () => {

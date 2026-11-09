@@ -15,7 +15,17 @@ const REVISION = "100644:aaaa:100644:bbbb";
 type CallRpcArgs = { pluginId: string; method: string; input?: unknown };
 
 /** The bundled Git and PR plugins' answers for env_a. */
-function bundledPlugins({ failGit = false } = {}) {
+/** What the bundled plugins report; a test can change it between calls. */
+interface Work {
+  headSha: string;
+  revision: string;
+  checks: string;
+}
+
+function bundledPlugins(
+  work: Work,
+  { failGit = false }: { failGit?: boolean } = {},
+) {
   return async ({ pluginId, method }: CallRpcArgs): Promise<unknown> => {
     if (pluginId === "bb--git" && failGit) throw new Error("machine offline");
     if (pluginId === "bb--git" && method === "status") {
@@ -23,7 +33,7 @@ function bundledPlugins({ failGit = false } = {}) {
         [ENV]: {
           outcome: "available",
           workspace: {
-            checkout: { kind: "branch", branchName: "feat/x", headSha: "abc123" },
+            checkout: { kind: "branch", branchName: "feat/x", headSha: work.headSha },
             branch: { currentBranch: "feat/x", defaultBranch: "main" },
           },
         },
@@ -32,13 +42,13 @@ function bundledPlugins({ failGit = false } = {}) {
     if (pluginId === "bb--git" && method === "files") {
       return {
         outcome: "available",
-        files: [{ path: "a.ts", revision: REVISION }],
+        files: [{ path: "a.ts", revision: work.revision }],
         mergeBaseRef: "base999",
       };
     }
     if (pluginId === "bb--github-pr-status" && method === "pullRequests") {
       return {
-        [ENV]: { outcome: "available", pullRequest: { checks: { state: "failing" } } },
+        [ENV]: { outcome: "available", pullRequest: { checks: { state: work.checks } } },
       };
     }
     throw new Error(`unexpected ${pluginId}.${method}`);
@@ -50,7 +60,8 @@ afterEach(() => {
 });
 
 async function setup(options: { failGit?: boolean } = {}) {
-  const callRpc = vi.fn(bundledPlugins(options));
+  const work: Work = { headSha: "abc123", revision: REVISION, checks: "failing" };
+  const callRpc = vi.fn(bundledPlugins(work, options));
   const host = createFakePluginHost({
     pluginId: "inbox",
     sdk: {
@@ -62,7 +73,7 @@ async function setup(options: { failGit?: boolean } = {}) {
     },
   });
   registerVerification(host.bb);
-  return { ...host, callRpc };
+  return { ...host, callRpc, work };
 }
 
 describe("verify", () => {
@@ -119,15 +130,30 @@ describe("verify", () => {
     });
   });
 
-  it("replaces an earlier Verification of the same thread", async () => {
-    const { harness } = await setup();
+  it("replaces an earlier Verification of the same thread, with the work it covers now", async () => {
+    const { harness, work } = await setup();
     vi.setSystemTime(1_000);
     await harness.behavior.callRpc("verify", { threadId: "thr_1", client: "Mac" });
+    work.headSha = "def456";
+    work.revision = "100644:bbbb:100644:cccc";
+    work.checks = "passing";
     vi.setSystemTime(2_000);
     await harness.behavior.callRpc("verify", { threadId: "thr_1", client: "iPhone" });
     await expect(
       harness.behavior.callRpc("verifications", { keys: ["thr_1"] }),
-    ).resolves.toMatchObject({ thr_1: { verifiedAt: 2_000, client: "iPhone" } });
+    ).resolves.toEqual({
+      thr_1: {
+        threadId: "thr_1",
+        verifiedAt: 2_000,
+        client: "iPhone",
+        diffBase: {
+          headSha: "def456",
+          mergeBaseRef: "base999",
+          files: [{ path: "a.ts", revision: "100644:bbbb:100644:cccc" }],
+        },
+        prChecksState: "passing",
+      },
+    });
   });
 });
 
