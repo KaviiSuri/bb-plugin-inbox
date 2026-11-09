@@ -2,7 +2,7 @@
 
 A BB sidebar thread list with two tabs: **Threads** (the full tree: nested children, shared vs. separate worktrees) and **Inbox** (a queue of what needs human attention, cleared by verifying the work).
 
-It's a fork of bb's built-in `thread-list` plugin, pinned to an upstream commit; [docs/fork.md](docs/fork.md) lists every difference and how to merge upstream. So far the fork is the Threads list with nothing added; the Inbox tab is next. See [docs/brief.md](docs/brief.md) for the decisions so far.
+It's a fork of bb's built-in `thread-list` plugin, pinned to an upstream commit; [docs/fork.md](docs/fork.md) lists every difference and how to merge upstream. The Threads tab is upstream's list, unchanged. The Inbox tab so far shows threads Blocked on you (`answer`, `approve`) and Broken (`failed`), under New for you and Seen, with running threads collapsed into one count at the bottom; Verify and FYI items come next. The inbox's rules live in one pure function, `deriveInbox` in `app/inbox/model.ts`. See [docs/brief.md](docs/brief.md) for the decisions so far.
 
 ## Install
 
@@ -20,7 +20,7 @@ Then pick **Inbox** under Settings → Appearance → Sidebar. Switching back to
 
 While developing, `bb plugin dev .` rebuilds and reloads on every save.
 
-![The fork in bb's sidebar drawer at 390×844](docs/screenshots/fork-phone.png)
+![The Inbox tab in bb's sidebar drawer at 390×844](docs/screenshots/inbox-phone.jpg)
 
 ## Checks
 
