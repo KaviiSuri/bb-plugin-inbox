@@ -88,15 +88,18 @@ for `npx shadcn add @bb/<item>`), `.gitignore`, `package-lock.json`,
 
 ### 4. Changes to upstream code
 
-Inbox code lives in `app/inbox/` and `shared/inbox-preferences.ts`, and
-touches upstream files only at the seams the spec names (root component,
-preference definitions, server). Each such change:
+Inbox code lives in `app/inbox/`, `server/verification/`,
+`shared/inbox-preferences.ts` and `shared/inbox-verification.ts`, and touches
+upstream files only at the seams the spec names (root component, preference
+definitions, server). Each such change:
 
 | File | Change | Why |
 |---|---|---|
 | `app.tsx` | `ThreadList` renders `InboxTabs` (from `app/inbox/InboxTabs.tsx`) inside the same providers, passing upstream's list as its Threads tab; `useSidebarThreadReveal()` and `<ProjectList>` move into a small `ThreadsTab` component in the same file | The Threads \| Inbox switch (#11). The reveal hook runs only while the Threads tab is mounted, so revealing the active thread is skipped while the Inbox shows |
 | `shared/preferences.ts` | imports `inboxPreferenceDefinitions` from `./inbox-preferences.js` and spreads it at the end of `preferenceDefinitions` | The Inbox's synced preferences (`activeTab`, #11) share upstream's KV, realtime channel, localStorage mirror and `bb inbox prefs` CLI |
 | `skills/inbox/SKILL.md` | lists `activeTab` among the keys and says what it does | Documents the new preference |
+| `server.ts` | imports `registerVerification` from `./server/verification/index.js` and calls it at the top of the factory | Verifications and Laters: their storage, keyed reads and mutations (#12) |
+| `app.test.tsx:215` | the "renders pinned, custom sections…" test checks only the preference RPC calls (`method.includes("Preference")`), not every RPC call | The Inbox tab's count reads Verifications, Laters and evidence even while the Threads tab shows |
 
 Not a file change, but worth knowing on a merge: `app/inbox/InboxTabs.tsx`
 offsets upstream's sticky headers below the tab bar with an unlayered

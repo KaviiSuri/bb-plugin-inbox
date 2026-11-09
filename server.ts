@@ -20,6 +20,7 @@ import {
   type PreferenceValue,
   type PreferenceValues,
 } from "./shared/preferences.js";
+import { registerVerification } from "./server/verification/index.js";
 
 const PREFERENCE_KV_PREFIX = "preference:";
 const MIGRATION_KV_KEY = "migration:ui-preferences:v1";
@@ -194,6 +195,7 @@ const JSON_OPTION = {
 
 export default async function threadListPlugin(bb: BbPluginApi) {
   const store = createPreferenceStore(bb);
+  registerVerification(bb);
 
   bb.rpc.register(threadListRpcContract, {
     async listPreferences() {
