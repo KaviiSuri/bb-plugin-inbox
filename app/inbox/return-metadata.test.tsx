@@ -33,7 +33,19 @@ it.each([
   expect(screen.queryByText("1 file · +0 −0")).toBeNull();
 });
 
-function renderReturn(title: string, revision: string, content: string, headMode?: string) {
+it("labels a truncated HEAD comparison unscoped even when its merge base matches the verified head", async () => {
+  setPreferencesMirrorStorageForTest(null);
+  // Without the truncation guard, the omitted path would look unchanged:
+  // its saved text and HEAD mode equal the current fileSide response.
+  renderReturn("truncated return", "100644:aaaa:100644:bbbb", "same\n", "100644", true);
+  fireEvent.click(await screen.findByRole("button", { name: "truncated return: verify" }));
+  expect(await screen.findByText("New work; couldn't tell what changed since you verified")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Verify" })).toBeTruthy();
+  expect(screen.queryByText("New changes since you verified")).toBeNull();
+  expect(screen.queryByText("Reported back; nothing to verify")).toBeNull();
+});
+
+function renderReturn(title: string, revision: string, content: string, headMode?: string, truncated = false) {
   const verification = { threadId: "thr_r", verifiedAt: 100, client: "Laptop", prChecksState: null,
     diffBase: { headSha: "aabb1122", mergeBaseRef: "bbbb9999", files: [
       { path: "file", revision, content, ...(headMode ? { headMode } : {}) },
@@ -56,7 +68,7 @@ function renderReturn(title: string, revision: string, content: string, headMode
     sdk: { plugins: { async callRpc<T>(args: { method: string; input?: unknown; outputSchema: { parse(value: unknown): T } }): Promise<T> {
       if (args.method === "files") {
         expect(args.input).toEqual({ environmentId: "env_r", target: { type: "all", mergeBaseBranch: "aabb1122" }, ignoreWhitespace: false });
-        return args.outputSchema.parse({ outcome: "available", mergeBaseRef: "aabb1122", files: [], truncated: false });
+        return args.outputSchema.parse({ outcome: "available", mergeBaseRef: "aabb1122", files: [], truncated });
       }
       expect(args.method).toBe("fileSide");
       expect(args.input).toEqual({ environmentId: "env_r", query: { target: "all", mergeBaseRef: "aabb1122", path: "file", side: "new" } });
