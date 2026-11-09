@@ -4,6 +4,7 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { CompactViewportOverrideProvider } from "@/components/ui/hooks/use-compact-viewport";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ClassifierSettingsSection } from "./app/classifier/ClassifierSettingsSection.js";
 import { PreferencesSync } from "./app/preferences/PreferencesSync.js";
 import { ProjectList } from "./app/list/ProjectList.js";
 import { useSidebarThreadReveal } from "./app/list/useSidebarThreadReveal.js";
@@ -58,4 +59,10 @@ export default definePluginApp((app) => {
     component: ThreadList,
   });
   app.slots.experimental_threadAction(moveThreadAction);
+  app.slots.settingsSection({
+    id: "turn-end-classifier",
+    title: "Turn-end classifier",
+    description: "Which model reads whether a turn ended with a question for you.",
+    component: ClassifierSettingsSection,
+  });
 });

@@ -6,6 +6,7 @@ import {
   type BbPluginApi,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import { registerTurnEndClassifier } from "./server/classifier/index.js";
 import {
   defaultPreferences,
   describePreference,
@@ -308,6 +309,8 @@ export default async function threadListPlugin(bb: BbPluginApi) {
       },
     }),
   );
+
+  registerTurnEndClassifier(bb);
 
   const { migrated } = await migrateFromUiPreferences(bb);
   if (migrated.length > 0) {
