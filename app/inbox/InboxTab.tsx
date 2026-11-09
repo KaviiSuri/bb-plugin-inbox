@@ -2,18 +2,22 @@
 // word) under New for you, then a faded Seen band. Tapping a row opens its
 // reason line, its evidence (Verify items only; scoped to what's new when a
 // verified thread is coming back, with what was already verified a tap away)
-// and visible buttons, one row at a time: Verify on Verify items only, Answer or Open, and Later. Running
-// threads are one counted line in a sticky footer, never rows.
+// and visible buttons: Verify on Verify items only, Answer or Open, and Later.
+// A child's own item names its parent and why it has one; folded children's
+// news is listed with Open helper for a child's permission. Running threads
+// are one counted line in a sticky footer, never rows.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ThreadTitle,
   experimental_ThreadStatusGlyph as ThreadStatusGlyph,
   experimental_resolveThreadStatus as resolveThreadStatus,
   useBbNavigate,
+  useSdk,
   type PluginSidebarThread,
 } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { AudienceLines, FoldedChildren } from "./ChildAudience.js";
 import { describeEvidence } from "./evidence.js";
 import { holdStill, layoutOf, type HeldLayout } from "./hold-still.js";
 import type {
@@ -42,6 +46,7 @@ export function InboxTab({
   onNavigate: () => void;
 }) {
   const navigate = useBbNavigate();
+  const sdk = useSdk();
   const openThread = (threadId: string) => {
     navigate.toThread(threadId);
     onNavigate();
@@ -62,7 +67,16 @@ export function InboxTab({
       onToggle={() =>
         setOpenId((current) => (current === item.threadId ? null : item.threadId))
       }
-      onOpenThread={() => openThread(item.threadId)}
+      onOpenThread={(id) => {
+        if (id === item.threadId && item.tier === "fyi") {
+          // Navigating to the already-active owner does not remount its chat.
+          // Explicitly read it so opening new folded reports clears FYI too.
+          void sdk.threads.markRead({ threadId: id }).catch(() => {
+            // Navigation still opens the thread; a later Open can retry.
+          });
+        }
+        openThread(id);
+      }}
       actions={actions}
       onSignedOff={() => setOpenId(null)}
     />
@@ -192,7 +206,7 @@ function ItemRow({
   active: boolean;
   open: boolean;
   onToggle: () => void;
-  onOpenThread: () => void;
+  onOpenThread: (threadId: string) => void;
   actions: SignOffActions;
   onSignedOff: () => void;
 }) {
@@ -261,7 +275,17 @@ function ItemRow({
           {item.comingBack && item.comingBack.verifiedPaths.length > 0 ? (
             <AlreadyVerified comingBack={item.comingBack} />
           ) : null}
+          <AudienceLines item={item} />
+          <FoldedChildren item={item} onOpenThread={onOpenThread} />
           <span className="-ml-2.5 flex flex-wrap items-center gap-1.5 pt-0.5">
+            {item.childPermission ? (
+              <RowButton
+                className={PRIMARY_BUTTON_CLASS}
+                onClick={() => onOpenThread(item.childPermission!.childThreadId)}
+              >
+                Open helper
+              </RowButton>
+            ) : null}
             {item.tier === "verify" ? (
               <RowButton
                 className={PRIMARY_BUTTON_CLASS}
@@ -272,13 +296,15 @@ function ItemRow({
             ) : null}
             <RowButton
               className={
-                item.tier === "verify"
+                item.tier === "verify" || item.childPermission
                   ? SECONDARY_BUTTON_CLASS
                   : PRIMARY_BUTTON_CLASS
               }
-              onClick={onOpenThread}
+              onClick={() => onOpenThread(item.threadId)}
             >
-              {item.tier === "blocked" ? "Answer" : "Open"}
+              {item.tier === "blocked" && !item.childPermission
+                ? "Answer"
+                : "Open"}
             </RowButton>
             <RowButton
               className={SECONDARY_BUTTON_CLASS}

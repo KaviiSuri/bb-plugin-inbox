@@ -25,6 +25,9 @@ export interface InboxSnapshot {
   threads: readonly PluginSidebarThread[];
   /** For threads with `hasPendingInteraction`, what they wait on. */
   interactions: Readonly<Record<string, PendingInteractionSummary>>;
+  /** Latest server turn/completed event per child; null while unknown.
+   * Sidebar latestAttentionAt does not advance on ordinary child idle. */
+  childCompletions: Readonly<Record<string, number | null>>;
   runtime: RuntimeTracking;
   /** Per environment id, once loaded: its diff and pull request. */
   evidence: Readonly<Record<string, EnvironmentEvidence>>;
@@ -50,6 +53,26 @@ export interface InboxItem {
   attentionAt: number;
   /** Set when a verified thread is coming back (ADR 0003). */
   comingBack?: ComingBack;
+  /** A `human`-audience child's item: its parent, named on the row (ADR 0002). */
+  parentThreadId?: string;
+  /** A `human`-audience child's item: why it got its own item (ADR 0008). */
+  audienceReason?: string;
+  /** `parent`-audience children whose news folded into this item. */
+  folded?: FoldedChild[];
+  /** A folded child still waiting on a permission once this thread stopped. */
+  childPermission?: { childThreadId: string; prompt: string };
+  /** Something folded into it arrived since its thread was last opened. */
+  news?: boolean;
+}
+
+/** A `parent`-audience child's news, shown on its owner's item. */
+export interface FoldedChild {
+  threadId: string;
+  title: string;
+  /** Finished with a report, stopped on an error, or waiting on a permission. */
+  state: "reported" | "failed" | "waiting";
+  reason: string;
+  attentionAt: number;
 }
 
 export interface RunningThread {

@@ -27,6 +27,7 @@ import {
   type PendingInteractionSummary,
   type RuntimeTracking,
 } from "./model/index.js";
+import { useChildCompletions } from "./useChildCompletions.js";
 import { useScopedChanges } from "./useScopedChanges.js";
 import { useInboxStart, useSignOffs } from "./useSignOffs.js";
 
@@ -47,6 +48,7 @@ export interface InboxViewState {
 export function useInboxView(): InboxViewState {
   const { status, threads } = experimental_useSidebarThreads();
   const interactions = usePendingInteractions(threads);
+  const childCompletions = useChildCompletions(threads);
   const visible = useMemo(
     () => threads.filter((t) => !t.isHidden && !t.isArchived),
     [threads],
@@ -68,6 +70,7 @@ export function useInboxView(): InboxViewState {
     () => ({
       threads,
       interactions,
+      childCompletions,
       runtime,
       evidence,
       verifications: signOffs.verifications,
@@ -78,7 +81,7 @@ export function useInboxView(): InboxViewState {
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
+    [threads, interactions, childCompletions, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
@@ -110,9 +113,10 @@ const MAX_EVIDENCE_KEYS = 200;
 
 /**
  * Evidence for the environments of threads that could be Verify or FYI:
- * stopped, not waiting on the human, and with work after the Inbox started
- * (none until that start has loaded). Verified threads are read too: their
- * PR checks can turn failing after the Verification. An
+ * stopped, not waiting on the human, not folded into a parent (a child),
+ * and with work after the Inbox started (none until that start has loaded).
+ * Verified threads are read too: their PR checks can turn failing after
+ * the Verification. An
  * environment is in the result once both its git status and its pull request
  * have answered (or their read failed), so the model can hold back until then.
  */
@@ -121,10 +125,14 @@ function useEvidence(
   inboxStartedAt: number | null,
 ): Readonly<Record<string, EnvironmentEvidence>> {
   const keys = useMemo(() => {
+    const visibleIds = new Set(visible.map((t) => t.id));
     const candidates = visible
       .filter(
         (t) =>
           t.environment?.id &&
+          // A child without a pending interaction folds into its parent's
+          // item, so its own evidence is never shown.
+          !(t.parentThreadId && visibleIds.has(t.parentThreadId)) &&
           !isRunning(t) &&
           !t.hasPendingInteraction &&
           inboxStartedAt !== null &&

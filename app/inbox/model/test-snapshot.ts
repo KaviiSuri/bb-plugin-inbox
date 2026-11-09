@@ -17,6 +17,11 @@ export function snapshot(overrides: Partial<InboxSnapshot> = {}): InboxSnapshot 
   return {
     threads: [],
     interactions: {},
+    // Simple fixtures use coincident attention/completion times. Lifecycle
+    // regressions override these with captured server turn/completed times.
+    childCompletions: Object.fromEntries(
+      (overrides.threads ?? []).map((t) => [t.id, t.latestAttentionAt]),
+    ),
     runtime: { running: {}, stoppedAt: {}, waitingForHostSince: {} },
     evidence: {},
     verifications: {},
