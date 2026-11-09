@@ -9,6 +9,7 @@ function item(threadId: string, word: InboxItem["word"] = "answer"): InboxItem {
     tier: word === "failed" ? "broken" : "blocked",
     word,
     reason: "",
+    evidence: null,
     attentionAt: 0,
   };
 }

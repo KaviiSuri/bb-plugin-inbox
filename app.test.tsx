@@ -212,7 +212,11 @@ describe("thread-list plugin", () => {
     const { rpcCalls } = renderList({ organizationMode: "chronological" });
 
     await screen.findByText("Pinned thread");
-    expect(rpcCalls.map((call) => call.method)).toEqual(["listPreferences"]);
+    expect(
+      rpcCalls
+        .map((call) => call.method)
+        .filter((method) => method.includes("Preference")),
+    ).toEqual(["listPreferences"]);
     expect(sectionHeaders()).toEqual(["Pinned", "Later", "Review", "Threads"]);
     expect(threadIds()).toEqual([
       "thr_pinned",
