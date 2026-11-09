@@ -1,7 +1,8 @@
 // The Inbox tab in "Paper dots" (ADR 0001): one-line rows (dot, title, one
 // word) under New for you, then a faded Seen band. Tapping a row opens its
-// reason line, its evidence (Verify items only) and visible buttons, one row
-// at a time: Verify on Verify items only, Answer or Open, and Later. Running
+// reason line, its evidence (Verify items only; scoped to what's new when a
+// verified thread is coming back, with what was already verified a tap away)
+// and visible buttons, one row at a time: Verify on Verify items only, Answer or Open, and Later. Running
 // threads are one counted line in a sticky footer, never rows.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -15,7 +16,12 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { describeEvidence } from "./evidence.js";
 import { holdStill, layoutOf, type HeldLayout } from "./hold-still.js";
-import type { InboxItem, RunningThread, Tier } from "./model/index.js";
+import type {
+  ComingBack,
+  InboxItem,
+  RunningThread,
+  Tier,
+} from "./model/index.js";
 import type { InboxViewState } from "./useInboxView.js";
 import { useSignOffActions, type SignOffActions } from "./useSignOffs.js";
 
@@ -252,6 +258,9 @@ function ItemRow({
                 </span>
               ))
             : null}
+          {item.comingBack && item.comingBack.verifiedPaths.length > 0 ? (
+            <AlreadyVerified comingBack={item.comingBack} />
+          ) : null}
           <span className="-ml-2.5 flex flex-wrap items-center gap-1.5 pt-0.5">
             {item.tier === "verify" ? (
               <RowButton
@@ -283,6 +292,50 @@ function ItemRow({
               {failure}
             </span>
           ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** What the Verification covered: out of the way, one tap to see. */
+function AlreadyVerified({ comingBack }: { comingBack: ComingBack }) {
+  const [expanded, setExpanded] = useState(false);
+  const count = comingBack.verifiedPaths.length;
+  return (
+    <div className="-ml-2.5 flex flex-col">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((open) => !open)}
+        className={cn(
+          "inline-flex w-fit items-center gap-1 rounded-md px-2.5 text-left text-xs text-subtle-foreground hover:text-muted-foreground max-md:text-sm",
+          BUTTON_HEIGHT_CLASS,
+        )}
+      >
+        <span>
+          Already verified · {count === 1 ? "1 file" : `${count} files`}
+        </span>
+        <Icon
+          name="ChevronRight"
+          className={cn("size-3 transition-transform", expanded && "rotate-90")}
+        />
+      </button>
+      {expanded ? (
+        <div className="flex flex-col gap-0.5 pb-1 pl-2.5">
+          <ul aria-label="Already verified" className="flex flex-col gap-0.5">
+            {comingBack.verifiedPaths.map((path) => (
+              <li
+                key={path}
+                className="text-xs break-all text-muted-foreground"
+              >
+                {path}
+              </li>
+            ))}
+          </ul>
+          <span className="text-xs text-subtle-foreground">
+            Verified on {comingBack.client}
+          </span>
         </div>
       ) : null}
     </div>

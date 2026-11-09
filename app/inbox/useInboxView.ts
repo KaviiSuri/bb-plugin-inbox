@@ -18,7 +18,6 @@ import {
 import {
   deriveInbox,
   isRunning,
-  isVerified,
   nextChangeAt,
   summarizePendingInteractions,
   trackRuntime,
@@ -28,7 +27,8 @@ import {
   type PendingInteractionSummary,
   type RuntimeTracking,
 } from "./model/index.js";
-import { useInboxStart, useSignOffs, type SignOffs } from "./useSignOffs.js";
+import { useScopedChanges } from "./useScopedChanges.js";
+import { useInboxStart, useSignOffs } from "./useSignOffs.js";
 
 const NO_TRACKING: RuntimeTracking = {
   running: {},
@@ -51,7 +51,8 @@ export function useInboxView(): InboxViewState {
   );
   const signOffs = useSignOffs(useMemo(() => visible.map((t) => t.id), [visible]));
   const inboxStartedAt = useInboxStart();
-  const evidence = useEvidence(visible, signOffs, inboxStartedAt);
+  const evidence = useEvidence(visible, inboxStartedAt);
+  const scoped = useScopedChanges(visible, signOffs.verifications);
   const [tick, setTick] = useState(0);
 
   // Advance the stop/stuck tracking once per new thread list.
@@ -69,12 +70,13 @@ export function useInboxView(): InboxViewState {
       evidence,
       verifications: signOffs.verifications,
       laters: signOffs.laters,
+      scoped,
       inboxStartedAt,
       now: Date.now(),
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, runtime, evidence, signOffs, inboxStartedAt, tick],
+    [threads, interactions, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
@@ -105,14 +107,14 @@ const MAX_EVIDENCE_KEYS = 200;
 
 /**
  * Evidence for the environments of threads that could be Verify or FYI:
- * stopped, not waiting on the human, not already verified, and with work
- * after the Inbox started (none until that start has loaded). An
+ * stopped, not waiting on the human, and with work after the Inbox started
+ * (none until that start has loaded). Verified threads are read too: their
+ * PR checks can turn failing after the Verification. An
  * environment is in the result once both its git status and its pull request
  * have answered (or their read failed), so the model can hold back until then.
  */
 function useEvidence(
   visible: readonly PluginSidebarThread[],
-  { verifications }: SignOffs,
   inboxStartedAt: number | null,
 ): Readonly<Record<string, EnvironmentEvidence>> {
   const keys = useMemo(() => {
@@ -123,8 +125,7 @@ function useEvidence(
           !isRunning(t) &&
           !t.hasPendingInteraction &&
           inboxStartedAt !== null &&
-          t.latestAttentionAt > inboxStartedAt &&
-          !isVerified(t, verifications[t.id]),
+          t.latestAttentionAt > inboxStartedAt,
       )
       .sort((a, b) => b.latestAttentionAt - a.latestAttentionAt);
     const ids = new Set<string>();
@@ -133,7 +134,7 @@ function useEvidence(
       ids.add(thread.environment!.id!);
     }
     return [...ids].sort();
-  }, [visible, verifications, inboxStartedAt]);
+  }, [visible, inboxStartedAt]);
   const keysId = keys.join(",");
   const stableKeys = useMemo(() => keys, [keysId]); // eslint-disable-line react-hooks/exhaustive-deps
 
