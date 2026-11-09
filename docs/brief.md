@@ -13,7 +13,7 @@ The human should always know what agents are doing and be able to verify it. Wor
 - **One item per thread, kept current.** A running thread is not an item; it shows as a count. Loading work must not crowd the UI.
 - **Priority tiers (draft):** 1 Blocked on you (question, permission, plan review, a grilling child) → 2 Broken (error, stuck) → 3 Verify (finished with a diff, PR or tests) → 4 FYI (a parent's summary of its children).
 - **Clearing an item means the work is verified.** It's a sign-off, not a dismissal. Each item needs to carry its evidence (diff, tests, PR checks, child summaries) and record who verified it and when. Open question: when a verified thread does more work, does it come back scoped to only the new changes?
-- **Child audience:** each child is `human` (it grills or asks the user directly, so it gets its own item) or `parent` (research and similar: the parent handles it, and it folds into the parent's item). Set explicitly when the child is spawned, and inferred as a fallback (AskUserQuestion, use of the grilling skill).
+- **Child audience:** each child is `human` (it grills or asks the user directly, so it gets its own item) or `parent` (research and similar: the parent handles it, and it folds into the parent's item). ~~Set explicitly when the child is spawned~~ Inferred only, from what the child does (see `docs/adr/0006-audience-inferred-only.md`).
 - **Classifying items:** deterministic signals first (status, pending tool calls, PR checks, errors). Use a cheap model only for "did the turn end with a question for me or a report?"
 
 ## Findings from the kickoff

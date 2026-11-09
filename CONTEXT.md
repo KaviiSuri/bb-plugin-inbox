@@ -31,14 +31,18 @@ The tier for a report with nothing to verify, including a parent's summary of it
 What an item carries for the human to check: diffstat, PR checks, tests, child reports.
 
 **Verification**:
-The sign-off that clears a Verify item: when it happened, on which client, and the diff base it covered. Clearing a Verify item always means it was verified, never dismissed.
+The sign-off that clears a Verify item: when it happened, on which client, and the diff base it covered. Stored by the plugin on the bb server, so it syncs across the human's devices. Clearing a Verify item always means it was verified, never dismissed.
 _Avoid_: dismiss, done, archive, mark read
 
 **Coming back**:
-A verified thread that did more work re-enters the inbox when that work finishes, asks or fails, showing only what changed since the verification's diff base.
+A verified thread that did more work re-enters the inbox when that work finishes, asks or fails, showing only what changed since the verification's diff base. It also comes back under Verify, with no new work, when its PR checks start failing after the verification.
 
 **Audience**:
-Who a child thread answers to. A `human` child gets its own item; a `parent` child folds into its parent's FYI item.
+Who a child thread answers to, inferred from what the child does (never declared at spawn). A `human` child gets its own item; a `parent` child folds into its parent's FYI item.
+
+**Later**:
+Puts an item out of sight without verifying it, until its thread has something new (finishes, asks or fails). It is not a clear.
+_Avoid_: snooze, dismiss
 
 **New for you / Seen**:
 The two bands of the Inbox tab. An item moves to Seen once its thread has been opened; it stays until it's verified (or, for FYI, cleared by that opening).
