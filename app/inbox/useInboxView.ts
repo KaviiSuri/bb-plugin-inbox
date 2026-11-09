@@ -15,7 +15,7 @@ import {
   type InboxView,
   type PendingInteractionSummary,
   type RuntimeTracking,
-} from "./model.js";
+} from "./model/index.js";
 
 const NO_TRACKING: RuntimeTracking = {
   running: {},

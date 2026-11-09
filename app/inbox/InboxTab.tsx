@@ -13,7 +13,7 @@ import {
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { holdStill, layoutOf, type HeldLayout } from "./hold-still.js";
-import type { InboxItem, RunningThread, Tier } from "./model.js";
+import type { InboxItem, RunningThread, Tier } from "./model/index.js";
 import type { InboxViewState } from "./useInboxView.js";
 
 /** Phone (drawer) widths get 40px tap targets; desktop keeps bb's row height. */

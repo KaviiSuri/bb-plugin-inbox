@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { holdStill, layoutOf } from "./hold-still.js";
-import type { InboxItem, InboxView } from "./model.js";
+import type { InboxItem, InboxView } from "./model/index.js";
 
 function item(threadId: string, word: InboxItem["word"] = "answer"): InboxItem {
   return {
