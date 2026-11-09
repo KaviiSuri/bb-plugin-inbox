@@ -25,6 +25,38 @@ it("refreshes completion on a new stopped version even when sidebar attention is
   expect(list).toHaveBeenCalledTimes(2);
 });
 
+it("withholds cached finish A while finish B loads, then exposes only B's completion", async () => {
+  let resolveB!: (events: unknown[]) => void;
+  const pendingB = new Promise<unknown[]>((resolve) => { resolveB = resolve; });
+  list.mockResolvedValueOnce(event(29)).mockReturnValueOnce(pendingB);
+  const hook = renderHook(({ threads }) => useChildCompletions(threads), { initialProps: { threads: [child] } });
+  await waitFor(() => expect(hook.result.current.child).toBe(29));
+
+  // The sidebar can deliver the next stopped version without an intervening
+  // running snapshot. A's cached timestamp must not describe B's finish.
+  hook.rerender({ threads: [{ ...child, updatedAt: 50 }] });
+  expect(list).toHaveBeenCalledTimes(2);
+  expect(hook.result.current.child).toBeNull();
+  await act(async () => { resolveB(event(49)); await pendingB; });
+  expect(hook.result.current.child).toBe(49);
+});
+
+it("does not fall back to cached finish A when the read for finish B fails", async () => {
+  let rejectB!: (error: Error) => void;
+  const pendingB = new Promise<unknown[]>((_, reject) => { rejectB = reject; });
+  list.mockResolvedValueOnce(event(29)).mockReturnValueOnce(pendingB);
+  const hook = renderHook(({ threads }) => useChildCompletions(threads), { initialProps: { threads: [child] } });
+  await waitFor(() => expect(hook.result.current.child).toBe(29));
+
+  hook.rerender({ threads: [{ ...child, updatedAt: 50 }] });
+  expect(hook.result.current.child).toBeNull();
+  await act(async () => {
+    rejectB(new Error("offline"));
+    await pendingB.catch(() => undefined);
+  });
+  expect(hook.result.current.child).toBeNull();
+});
+
 it("a metadata edit refetches the event but does not invent a new completion", async () => {
   list.mockResolvedValue(event(29));
   const hook = renderHook(({ threads }) => useChildCompletions(threads), { initialProps: { threads: [child] } });
