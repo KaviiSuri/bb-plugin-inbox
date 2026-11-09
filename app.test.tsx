@@ -370,7 +370,7 @@ describe("thread-list plugin", () => {
 
   it("keys its slot and preferences mirror by its own plugin id", async () => {
     window.localStorage.clear();
-    expect(registration.id).toBe("thread-list");
+    expect(registration.id).toBe("inbox");
     renderList({ organizationMode: "machine" }, { pluginId: "thread-list" });
 
     await screen.findByText("Pinned thread");

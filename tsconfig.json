@@ -29,6 +29,7 @@
     "app/**/*.ts",
     "app/**/*.tsx",
     "shared/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "fork.test.ts"
   ]
 }

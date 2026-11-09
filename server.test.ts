@@ -156,7 +156,7 @@ describe("thread-list preferences rpc", () => {
       }),
     ).resolves.toEqual({
       key: "rowActions",
-      value: ["thread-list/move", "push-notifications/level"],
+      value: ["inbox/move", "push-notifications/level"],
     });
     await expect(
       harness.behavior.callRpc("setPreference", {
@@ -189,7 +189,7 @@ describe("thread-list preferences rpc", () => {
     };
     expect(listed.preferences.rowActions).toEqual([
       "bb--core/pin",
-      "thread-list/move",
+      "inbox/move",
       "bb--core/rename",
     ]);
   });

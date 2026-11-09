@@ -33,10 +33,10 @@ function ThreadList({
 
 export default definePluginApp((app) => {
   app.slots.experimental_threadList({
-    id: "thread-list",
-    title: "Thread list",
+    id: "inbox",
+    title: "Inbox",
     description:
-      "Pinned threads, custom sections, projects, machines, and nested threads.",
+      "bb's thread list with an Inbox tab: pinned threads, custom sections, projects, machines, and nested threads.",
     component: ThreadList,
   });
   app.slots.experimental_threadAction(moveThreadAction);

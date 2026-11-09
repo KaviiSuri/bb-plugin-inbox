@@ -46,6 +46,9 @@ const FORK_MANIFEST = {
   scripts: { build: "bb plugin build ." },
 };
 
+// Fork-owned sources tsconfig.json includes besides upstream's.
+const FORK_TSCONFIG_INCLUDE = ["fork.test.ts"];
+
 // Upstream paths that live elsewhere in the fork.
 const PATH_RENAMES = {
   "skills/thread-list/SKILL.md": "skills/inbox/SKILL.md",
@@ -183,10 +186,11 @@ async function vendor(bb) {
     registryDependencies,
   });
   writeJson(join(root, "package.json"), mergeManifest(manifest, FORK_MANIFEST));
-  writeJson(
-    join(root, "tsconfig.json"),
-    fork.forkPluginTsconfig(readJson(bb, pin.commit, `${pin.pluginPath}/tsconfig.json`)),
+  const tsconfig = fork.forkPluginTsconfig(
+    readJson(bb, pin.commit, `${pin.pluginPath}/tsconfig.json`),
   );
+  tsconfig.include = [...new Set([...tsconfig.include, ...FORK_TSCONFIG_INCLUDE])];
+  writeJson(join(root, "tsconfig.json"), tsconfig);
   console.log(`vendored registry items: ${items.map((item) => item.name).join(", ")}`);
 }
 
