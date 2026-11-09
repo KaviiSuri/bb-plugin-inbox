@@ -1,8 +1,10 @@
 // The Inbox tab in "Paper dots" (ADR 0001): one-line rows (dot, title, one
 // word) under New for you, then a faded Seen band. Tapping a row opens its
 // reason line, its evidence (Verify items only) and visible buttons, one row
-// at a time: Verify on Verify items only, Answer or Open, and Later. Running
-// threads are one counted line in a sticky footer, never rows.
+// at a time: Verify on Verify items only, Answer or Open, and Later. A child's
+// own item names its parent and why it has one; folded children's news is
+// listed with Open helper for a child's permission. Running threads are one
+// counted line in a sticky footer, never rows.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ThreadTitle,
@@ -13,6 +15,7 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { AudienceLines, FoldedChildren } from "./ChildAudience.js";
 import { describeEvidence } from "./evidence.js";
 import { holdStill, layoutOf, type HeldLayout } from "./hold-still.js";
 import type { InboxItem, RunningThread, Tier } from "./model/index.js";
@@ -56,7 +59,7 @@ export function InboxTab({
       onToggle={() =>
         setOpenId((current) => (current === item.threadId ? null : item.threadId))
       }
-      onOpenThread={() => openThread(item.threadId)}
+      onOpenThread={openThread}
       actions={actions}
       onSignedOff={() => setOpenId(null)}
     />
@@ -186,7 +189,7 @@ function ItemRow({
   active: boolean;
   open: boolean;
   onToggle: () => void;
-  onOpenThread: () => void;
+  onOpenThread: (threadId: string) => void;
   actions: SignOffActions;
   onSignedOff: () => void;
 }) {
@@ -252,7 +255,17 @@ function ItemRow({
                 </span>
               ))
             : null}
+          <AudienceLines item={item} />
+          <FoldedChildren item={item} onOpenThread={onOpenThread} />
           <span className="-ml-2.5 flex flex-wrap items-center gap-1.5 pt-0.5">
+            {item.childPermission ? (
+              <RowButton
+                className={PRIMARY_BUTTON_CLASS}
+                onClick={() => onOpenThread(item.childPermission!.childThreadId)}
+              >
+                Open helper
+              </RowButton>
+            ) : null}
             {item.tier === "verify" ? (
               <RowButton
                 className={PRIMARY_BUTTON_CLASS}
@@ -263,13 +276,15 @@ function ItemRow({
             ) : null}
             <RowButton
               className={
-                item.tier === "verify"
+                item.tier === "verify" || item.childPermission
                   ? SECONDARY_BUTTON_CLASS
                   : PRIMARY_BUTTON_CLASS
               }
-              onClick={onOpenThread}
+              onClick={() => onOpenThread(item.threadId)}
             >
-              {item.tier === "blocked" ? "Answer" : "Open"}
+              {item.tier === "blocked" && !item.childPermission
+                ? "Answer"
+                : "Open"}
             </RowButton>
             <RowButton
               className={SECONDARY_BUTTON_CLASS}

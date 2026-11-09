@@ -147,7 +147,7 @@ describe("summarizePendingInteractions: answer vs approve", () => {
       summarizePendingInteractions([
         approval(subject),
       ] as unknown as PendingInteractionList),
-    ).toEqual({ kind: "approval", reason });
+    ).toEqual({ kind: "approval", reason, subject: subject.kind });
   });
 
   it("ignores interactions that are no longer pending", () => {

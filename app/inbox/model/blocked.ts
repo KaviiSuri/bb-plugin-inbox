@@ -18,6 +18,8 @@ export interface PendingInteractionSummary {
   kind: PendingInteractionKind;
   /** The reason line, e.g. "Asks: which database?". */
   reason: string;
+  /** For an approval, what it approves; a plan review makes a child `human`. */
+  subject?: ApprovalSubject["kind"];
 }
 
 /**
@@ -44,7 +46,11 @@ function summarize(interaction: PendingInteraction): PendingInteractionSummary {
     case "plugin":
       return { kind: "plugin", reason: payload.title };
     case "approval":
-      return { kind: "approval", reason: approvalReason(payload.subject) };
+      return {
+        kind: "approval",
+        reason: approvalReason(payload.subject),
+        subject: payload.subject.kind,
+      };
     default:
       return { kind: "plugin", reason: "Waiting for you" };
   }

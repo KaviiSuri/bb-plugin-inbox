@@ -2,6 +2,7 @@
 // React and no SDK calls. Each concern lives in its own module; this file only
 // composes them, so a new rule is one line here.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
+import { audience } from "./audience.js";
 import { blocked } from "./blocked.js";
 import { broken, stuck, stuckDeadlines } from "./broken.js";
 import { fyi } from "./fyi.js";
@@ -61,7 +62,7 @@ const THREAD_RULES: readonly ThreadRule[] = [
 ];
 
 /** Then the passes over the items, in order. */
-const ITEM_RULES: readonly ItemRule[] = [later];
+const ITEM_RULES: readonly ItemRule[] = [audience, later];
 
 function outcomeOf(
   thread: PluginSidebarThread,
@@ -107,9 +108,12 @@ export function deriveInbox(snapshot: InboxSnapshot): InboxView {
     }
   }
   for (const rule of ITEM_RULES) items = rule(items, snapshot);
-  // Seen once the thread was opened since its latest attention.
-  const newForYou = items.filter((entry) => unread.has(entry.threadId));
-  const seen = items.filter((entry) => !unread.has(entry.threadId));
+  // Seen once the thread was opened since its latest attention, unless
+  // something folded into it arrived after that.
+  const isNew = (entry: InboxItem) =>
+    unread.has(entry.threadId) || entry.news === true;
+  const newForYou = items.filter(isNew);
+  const seen = items.filter((entry) => !isNew(entry));
   newForYou.sort(compareItems);
   seen.sort(compareItems);
   return {
