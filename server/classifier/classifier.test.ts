@@ -449,6 +449,38 @@ describe("turn-end classifier: startup reconcile", () => {
     });
   });
 
+  it("spends nothing on a first install, even with a provider already set", async () => {
+    const missed = Array.from({ length: 3 }, (_, index) =>
+      thread({ id: `thr_past${index}`, latestAttentionAt: 900 + index }),
+    );
+    const host = await start({
+      provider: true,
+      spawn: recordingSpawn(),
+      threads: missed,
+      outputs: Object.fromEntries(missed.map((t) => [t.id, "Should I merge?"])),
+    });
+    expect(spawnCalls(host)).toHaveLength(0);
+    await expect(turnEnds(host, ["thr_past0", "thr_past2"])).resolves.toMatchObject({
+      thr_past0: { source: "heuristic", fallback: "startup" },
+      thr_past2: { source: "heuristic", fallback: "startup" },
+    });
+  });
+
+  it("never classifies a helper thread that reads as visible", async () => {
+    const host = await start({
+      provider: true,
+      spawn: recordingSpawn(),
+      threads: [thread({ id: "thr_visible_helper", originPluginId: PLUGIN_ID })],
+      outputs: { thr_visible_helper: "QUESTION" },
+      watermark: 1,
+    });
+    expect(spawnCalls(host)).toHaveLength(0);
+    expect(host.harness.inspection.sdk.callsTo("threads.output")).toHaveLength(0);
+    await expect(turnEnds(host, ["thr_visible_helper"])).resolves.toEqual({
+      thr_visible_helper: null,
+    });
+  });
+
   it("uses the model for turn ends missed since it last ran", async () => {
     spawned.length = 0;
     const host = await setup({
