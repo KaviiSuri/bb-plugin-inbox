@@ -92,12 +92,19 @@ None yet. Inbox work should live in its own modules and touch upstream files
 only at the seams the spec names (root component, preference definitions,
 server). List each such change here.
 
-## Known coexistence wart
+## Decided: left as upstream
 
-Both plugins register the "Move to section" thread action (`thread-list/move`
-and `inbox/move`). Thread action menus are additive, so when both plugins are
-enabled and organized chronologically, thread menus show the item twice. The
-fork doesn't fix this yet because it would change upstream code.
+Both decided by the user on PR #16 (2026-11-09), to keep upstream merges
+mechanical:
+
+- **Tap targets.** Upstream's Threads list sizes some controls under 40px on
+  a coarse pointer (group header buttons 32–36px, collapse chevrons 20–24px,
+  nested child rows 36px), the same as bb's built-in list. The Threads tab
+  keeps upstream's sizes; only the Inbox tab must meet 40px.
+- **Duplicate "Move to section".** Both plugins register it (`thread-list/move`
+  and `inbox/move`), and thread action menus are additive, so with both
+  enabled and organized chronologically the menu shows it twice. Accepted: it
+  goes away once the built-in list is disabled.
 
 ## Merging upstream later
 
