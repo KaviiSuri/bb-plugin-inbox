@@ -88,9 +88,18 @@ for `npx shadcn add @bb/<item>`), `.gitignore`, `package-lock.json`,
 
 ### 4. Changes to upstream code
 
-None yet. Inbox work should live in its own modules and touch upstream files
-only at the seams the spec names (root component, preference definitions,
-server). List each such change here.
+Inbox work lives in its own modules and touches upstream files only at the
+seams the spec names (root component, preference definitions, server). Each
+such change:
+
+| File | Change | Why |
+|---|---|---|
+| `server.ts` | imports `registerTurnEndClassifier` from `server/classifier/` and calls it in the factory | turn-end classifier, server half (#18) |
+| `app.tsx` | imports `ClassifierSettingsSection` and registers it with `app.slots.settingsSection` | the classifier's model picker on the plugin's settings page (#18) |
+| `tsconfig.json` | `server/**/*.ts` in `include` (generated: added to `FORK_TSCONFIG_INCLUDE` in `scripts/fork-upstream.mjs`) | typecheck the fork-owned `server/` modules (#18) |
+
+Fork-owned modules these seams load: `server/classifier/`,
+`app/classifier/`, `skills/inbox-classifier/`.
 
 ## Decided: left as upstream
 

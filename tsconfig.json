@@ -30,6 +30,7 @@
     "app/**/*.tsx",
     "shared/**/*.ts",
     "vitest.config.ts",
-    "fork.test.ts"
+    "fork.test.ts",
+    "server/**/*.ts"
   ]
 }

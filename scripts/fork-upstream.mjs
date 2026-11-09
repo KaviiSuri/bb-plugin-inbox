@@ -47,7 +47,7 @@ const FORK_MANIFEST = {
 };
 
 // Fork-owned sources tsconfig.json includes besides upstream's.
-const FORK_TSCONFIG_INCLUDE = ["fork.test.ts"];
+const FORK_TSCONFIG_INCLUDE = ["fork.test.ts", "server/**/*.ts"];
 
 // Upstream paths that live elsewhere in the fork.
 const PATH_RENAMES = {
