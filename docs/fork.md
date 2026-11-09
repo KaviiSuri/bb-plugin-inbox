@@ -88,18 +88,26 @@ for `npx shadcn add @bb/<item>`), `.gitignore`, `package-lock.json`,
 
 ### 4. Changes to upstream code
 
-Inbox work lives in its own modules and touches upstream files only at the
-seams the spec names (root component, preference definitions, server). Each
-such change:
+Inbox code lives in `app/inbox/`, `shared/inbox-preferences.ts`,
+`server/classifier/`, `app/classifier/` and `skills/inbox-classifier/`, and
+touches upstream files only at the seams the spec names (root component,
+preference definitions, server). Each such change:
 
 | File | Change | Why |
 |---|---|---|
-| `server.ts` | imports `registerTurnEndClassifier` from `server/classifier/` and calls it in the factory | turn-end classifier, server half (#18) |
+| `app.tsx` | `ThreadList` renders `InboxTabs` (from `app/inbox/InboxTabs.tsx`) inside the same providers, passing upstream's list as its Threads tab; `useSidebarThreadReveal()` and `<ProjectList>` move into a small `ThreadsTab` component in the same file | The Threads \| Inbox switch (#11). The reveal hook runs only while the Threads tab is mounted, so revealing the active thread is skipped while the Inbox shows |
 | `app.tsx` | imports `ClassifierSettingsSection` and registers it with `app.slots.settingsSection` | the classifier's model picker on the plugin's settings page (#18) |
+| `shared/preferences.ts` | imports `inboxPreferenceDefinitions` from `./inbox-preferences.js` and spreads it at the end of `preferenceDefinitions` | The Inbox's synced preferences (`activeTab`, #11) share upstream's KV, realtime channel, localStorage mirror and `bb inbox prefs` CLI |
+| `skills/inbox/SKILL.md` | lists `activeTab` among the keys and says what it does | Documents the new preference |
+| `server.ts` | imports `registerTurnEndClassifier` from `server/classifier/` and calls it in the factory | turn-end classifier, server half (#18) |
 | `tsconfig.json` | `server/**/*.ts` in `include` (generated: added to `FORK_TSCONFIG_INCLUDE` in `scripts/fork-upstream.mjs`) | typecheck the fork-owned `server/` modules (#18) |
 
-Fork-owned modules these seams load: `server/classifier/`,
-`app/classifier/`, `skills/inbox-classifier/`.
+Not a file change, but worth knowing on a merge: `app/inbox/InboxTabs.tsx`
+offsets upstream's sticky headers below the tab bar with an unlayered
+`<style>` that overrides the host's `--bb-sidebar-sticky-label-top`,
+`--bb-sidebar-sticky-project-top` and the stack's `::before` `top`. If an
+upstream or bb release renames those custom properties, the Threads tab's
+sticky headers slide under the tab bar; update the CSS there.
 
 ## Decided: left as upstream
 
