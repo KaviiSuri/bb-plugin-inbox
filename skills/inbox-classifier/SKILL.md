@@ -12,9 +12,9 @@ decide a child thread's audience (ADR 0008).
 
 ## Choosing the model
 
-The `turnEndClassifier` plugin setting holds the provider, model and reasoning
-level, as JSON. Set it in Settings → Installed plugins → Inbox → Turn-end
-classifier with bb's model picker, then Save.
+The plugin keeps the provider, model and reasoning level in its own storage
+(not a bb setting, so no raw JSON field shows). Set it in Settings → Installed
+plugins → Inbox → Turn-end classifier with bb's model picker, then Save.
 
 - Empty (the default): a plain rule decides, does the last message end with a
   question to the user? No tokens are spent.
@@ -23,7 +23,9 @@ classifier with bb's model picker, then Save.
   one word, and is archived and stopped. If it fails, times out (90s) or gives
   no clear answer, the plain rule decides.
 
-Turn it off from the CLI with `bb plugin config inbox set turnEndClassifier ""`.
+From the CLI, read it with `bb plugin rpc call inbox getTurnEndClassifier`
+and turn it off with `bb plugin rpc call inbox setTurnEndClassifier
+--input-file <file>` where the file holds `{"selection": null}`.
 
 At startup the plugin catches up on turn ends it missed while unloaded. A first
 install uses the plain rule for all of them; later, at most 10 missed turn ends

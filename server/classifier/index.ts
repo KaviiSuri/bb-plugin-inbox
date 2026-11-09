@@ -4,7 +4,7 @@ import { z } from "zod";
 import { eventUsesGrilling, GRILLING_EVENT_TYPES } from "./grilling.js";
 import { classifyTurnEnd, type TurnEndVerdict } from "./heuristic.js";
 import { createHelperRunner, type HelperOutcome } from "./helper.js";
-import { defineSelectionSetting, selectionSchema } from "./selection.js";
+import { createSelectionStore, selectionSchema } from "./selection.js";
 import {
   createTurnEndStore,
   publicTurnEnd,
@@ -27,6 +27,10 @@ export const turnEndRpcContract = defineRpcContract({
   turnEnds: {
     input: z.object({ keys: z.array(z.string().min(1)).max(500) }).strict(),
     output: z.record(z.string(), turnEndSchema.nullable()),
+  },
+  getTurnEndClassifier: {
+    input: z.null(),
+    output: z.object({ selection: selectionSchema.nullable() }).strict(),
   },
   setTurnEndClassifier: {
     input: z.object({ selection: selectionSchema.nullable() }).strict(),
@@ -66,7 +70,7 @@ export function registerTurnEndClassifier(
   options: TurnEndClassifierOptions = {},
 ) {
   const store = createTurnEndStore(bb);
-  const selection = defineSelectionSetting(bb);
+  const selection = createSelectionStore(bb);
   const runner = createHelperRunner(bb, {
     timeoutMs: options.helperTimeoutMs ?? DEFAULT_HELPER_TIMEOUT_MS,
   });
@@ -230,6 +234,9 @@ export function registerTurnEndClassifier(
         }),
       );
       return rows;
+    },
+    async getTurnEndClassifier() {
+      return { selection: await selection.get() };
     },
     async setTurnEndClassifier({ selection: next }) {
       await selection.set(next);

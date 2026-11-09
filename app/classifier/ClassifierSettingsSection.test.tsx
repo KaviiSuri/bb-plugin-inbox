@@ -16,15 +16,15 @@ const SELECTION = {
   reasoningLevel: "low",
 };
 
-function render(saved: string) {
+function render(saved: typeof SELECTION | null) {
   const calls: unknown[] = [];
   const slot = renderSlot(section, {}, {
-    settings: { turnEndClassifier: saved },
     providers: {
       status: "ready",
       providers: [{ id: "claude-code", available: true, displayName: "Claude Code" }] as never,
     },
     rpc: {
+      getTurnEndClassifier: () => ({ selection: saved }),
       setTurnEndClassifier: (input: unknown) => {
         calls.push(input);
         return input;
@@ -40,14 +40,14 @@ describe("turn-end classifier settings section", () => {
   });
 
   it("is off by default and shows no picker until the user asks for one", async () => {
-    const { slot } = render("");
+    const { slot } = render(null);
     await slot.findByText(/no tokens are spent/u);
     expect(slot.queryByTestId("bb-provider-model-picker")).toBeNull();
     expect(slot.queryByRole("button", { name: "Turn off" })).toBeNull();
   });
 
   it("saves nothing when the picker emits a value; only Save writes the setting", async () => {
-    const { slot, calls } = render("");
+    const { slot, calls } = render(null);
     fireEvent.click(await slot.findByRole("button", { name: "Choose a model" }));
     fireEvent.change(slot.getByLabelText("Model"), {
       target: { value: "claude-haiku-5-5" },
@@ -59,14 +59,14 @@ describe("turn-end classifier settings section", () => {
   });
 
   it("can't save a pick with no model", async () => {
-    const { slot } = render("");
+    const { slot } = render(null);
     fireEvent.click(await slot.findByRole("button", { name: "Choose a model" }));
     fireEvent.click(slot.getByRole("button", { name: "Apply execution selection" }));
     expect((slot.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("shows the saved model and turns it off", async () => {
-    const { slot, calls } = render(JSON.stringify(SELECTION));
+    const { slot, calls } = render(SELECTION);
     expect(((await slot.findByLabelText("Model")) as HTMLInputElement).value).toBe(
       "claude-haiku-5-5",
     );

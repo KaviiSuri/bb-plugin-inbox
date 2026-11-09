@@ -1,16 +1,15 @@
 import {
   experimental_ProviderModelPicker as ProviderModelPicker,
   experimental_useProviders,
+  useRealtime,
   useRpc,
-  useSettings,
   type ExperimentalProviderModelPickerValue,
 } from "@get-bb/plugin-sdk/app";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { turnEndRpcContract } from "../../server/classifier/index.js";
 import {
-  parseSelection,
-  SELECTION_SETTING,
+  SELECTION_CHANGED_CHANNEL,
   type ClassifierSelection,
 } from "../../server/classifier/selection.js";
 
@@ -20,20 +19,34 @@ import {
 // seed against the live catalog, and that must never start spending tokens.
 
 export function ClassifierSettingsSection() {
-  const { values, isLoading } = useSettings();
   const rpc = useRpc<typeof turnEndRpcContract>();
   const providers = experimental_useProviders();
-  const saved = parseSelection(String(values?.[SELECTION_SETTING] ?? ""));
+  // undefined while loading; null when off.
+  const [saved, setSaved] = useState<ClassifierSelection | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ExperimentalProviderModelPickerValue | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const rpcRef = useRef(rpc);
+  rpcRef.current = rpc;
+  const load = useCallback(async () => {
+    try {
+      setSaved((await rpcRef.current.call("getTurnEndClassifier", null)).selection);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  useRealtime(SELECTION_CHANGED_CHANNEL, () => void load());
+
   async function save(selection: ClassifierSelection | null) {
     setSaving(true);
     setError(null);
     try {
-      await rpc.call("setTurnEndClassifier", { selection });
+      setSaved((await rpc.call("setTurnEndClassifier", { selection })).selection);
       setDraft(null);
       setEditing(false);
     } catch (cause) {
@@ -43,7 +56,9 @@ export function ClassifierSettingsSection() {
     }
   }
 
-  if (isLoading) return null;
+  if (saved === undefined) {
+    return error ? <p className="text-sm text-destructive">{error}</p> : null;
+  }
 
   const firstProvider = providers.providers.find((provider) => provider.available);
   const pickerValue: ExperimentalProviderModelPickerValue | null =

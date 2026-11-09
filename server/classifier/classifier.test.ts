@@ -52,9 +52,6 @@ function helperThread(id = `thr_helper${(helperCount += 1)}`): Thread {
 async function setup(options: Setup = {}) {
   const { bb, harness } = createFakePluginHost({
     pluginId: PLUGIN_ID,
-    settings: options.provider
-      ? { turnEndClassifier: JSON.stringify(SELECTION) }
-      : {},
     sdk: {
       projects: {
         list: async () =>
@@ -83,6 +80,7 @@ async function setup(options: Setup = {}) {
       },
     },
   });
+  if (options.provider) await bb.storage.kv.set("classifier:selection", SELECTION);
   if (options.watermark !== undefined) {
     await bb.storage.kv.set("turnEnd:watermark", options.watermark);
   }
@@ -613,11 +611,21 @@ describe("turn-end classifier: the turnEnds rpc", () => {
     ).resolves.toEqual({ thr_helper_x: null, thr_archived: null, thr_hidden: null });
   });
 
-  it("turns the helper on and off through the setting the picker writes", async () => {
+  it("turns the helper on and off through the rpc the picker's Save writes", async () => {
     const host = await start({ provider: false, spawn: recordingSpawn() }, 30);
+    await expect(
+      host.harness.behavior.callRpc("getTurnEndClassifier", null),
+    ).resolves.toEqual({ selection: null });
     await expect(
       host.harness.behavior.callRpc("setTurnEndClassifier", { selection: SELECTION }),
     ).resolves.toEqual({ selection: SELECTION });
+    await expect(
+      host.harness.behavior.callRpc("getTurnEndClassifier", null),
+    ).resolves.toEqual({ selection: SELECTION });
+    expect(host.harness.realtimeSignals).toContainEqual({
+      channel: "turn-end-classifier",
+      payload: { selection: SELECTION },
+    });
     await host.harness.behavior.emitThreadEvent("thread.idle", {
       thread: thread({ latestAttentionAt: 1 }),
       lastAssistantText: "Done.",
@@ -627,6 +635,9 @@ describe("turn-end classifier: the turnEnds rpc", () => {
 
     await expect(
       host.harness.behavior.callRpc("setTurnEndClassifier", { selection: null }),
+    ).resolves.toEqual({ selection: null });
+    await expect(
+      host.harness.behavior.callRpc("getTurnEndClassifier", null),
     ).resolves.toEqual({ selection: null });
     await host.harness.behavior.emitThreadEvent("thread.idle", {
       thread: thread({ latestAttentionAt: 2 }),
