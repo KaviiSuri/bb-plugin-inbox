@@ -11,7 +11,8 @@ The Inbox plugin, a fork of bb's Thread list, owns its sidebar layout state. Rea
 `manualSectionOrder`, `machineSectionOrder`, `hiddenGroups` (including the
 built-in `threads` group), `rowActions`,
 `collapsedSections`, `collapsedProjects`, `collapsedThreads`,
-`collapsedEnvironments`, `collapsedThreadSections`, and `collapsedMachines`.
+`collapsedEnvironments`, `collapsedThreadSections`, `collapsedMachines`,
+and `activeTab`.
 
 ```sh
 bb inbox prefs list [--json]
@@ -27,6 +28,11 @@ both work. A value the key's schema rejects fails with
 `invalid_preference_value` and leaves the stored value alone. Every open
 window applies a change immediately. Sections themselves and a thread's
 section are bb core state: use `bb thread section` and `bb thread update`.
+
+`activeTab` is the tab the sidebar shows: `threads` (default, the thread
+list) or `inbox` (the Inbox: threads blocked on the human or broken, plus a
+count of running threads). `bb inbox prefs set activeTab inbox` switches
+every open window.
 
 On first load the plugin copies any non-default `sidebar.*` values from
 `bb settings ui` once; after that the two are independent.

@@ -2,7 +2,7 @@
 // word) under New for you, then a faded Seen band. Tapping a row opens its
 // reason line and a visible Answer / Open button, one row at a time. Running
 // threads are one counted line in a sticky footer, never rows.
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ThreadTitle,
   experimental_ThreadStatusGlyph as ThreadStatusGlyph,
@@ -99,6 +99,12 @@ function useHeldView(state: InboxViewState) {
   const live = useRef(state.view);
   live.current = state.view;
   const release = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (release.current) clearTimeout(release.current);
+    },
+    [],
+  );
   const handlers = useMemo(() => {
     const hold = () => {
       if (release.current) clearTimeout(release.current);

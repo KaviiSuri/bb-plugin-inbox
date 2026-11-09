@@ -88,9 +88,22 @@ for `npx shadcn add @bb/<item>`), `.gitignore`, `package-lock.json`,
 
 ### 4. Changes to upstream code
 
-None yet. Inbox work should live in its own modules and touch upstream files
-only at the seams the spec names (root component, preference definitions,
-server). List each such change here.
+Inbox code lives in `app/inbox/` and `shared/inbox-preferences.ts`, and
+touches upstream files only at the seams the spec names (root component,
+preference definitions, server). Each such change:
+
+| File | Change | Why |
+|---|---|---|
+| `app.tsx` | `ThreadList` renders `InboxTabs` (from `app/inbox/InboxTabs.tsx`) inside the same providers, passing upstream's list as its Threads tab; `useSidebarThreadReveal()` and `<ProjectList>` move into a small `ThreadsTab` component in the same file | The Threads \| Inbox switch (#11). The reveal hook runs only while the Threads tab is mounted, so revealing the active thread is skipped while the Inbox shows |
+| `shared/preferences.ts` | imports `inboxPreferenceDefinitions` from `./inbox-preferences.js` and spreads it at the end of `preferenceDefinitions` | The Inbox's synced preferences (`activeTab`, #11) share upstream's KV, realtime channel, localStorage mirror and `bb inbox prefs` CLI |
+| `skills/inbox/SKILL.md` | lists `activeTab` among the keys and says what it does | Documents the new preference |
+
+Not a file change, but worth knowing on a merge: `app/inbox/InboxTabs.tsx`
+offsets upstream's sticky headers below the tab bar with an unlayered
+`<style>` that overrides the host's `--bb-sidebar-sticky-label-top`,
+`--bb-sidebar-sticky-project-top` and the stack's `::before` `top`. If an
+upstream or bb release renames those custom properties, the Threads tab's
+sticky headers slide under the tab bar; update the CSS there.
 
 ## Decided: left as upstream
 
