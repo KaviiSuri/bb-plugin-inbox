@@ -524,4 +524,20 @@ describe("nextChangeAt", () => {
       ),
     ).toBe(NOW - 1_000 + STUCK_WAITING_FOR_HOST_MS);
   });
+
+  it("ignores a wait that already turned stuck, so a later grace still wakes the list", () => {
+    expect(
+      nextChangeAt(
+        snapshot({
+          runtime: {
+            running: {},
+            stoppedAt: { just_stopped: NOW - 500 },
+            waitingForHostSince: {
+              stuck: NOW - STUCK_WAITING_FOR_HOST_MS - 10_000,
+            },
+          },
+        }),
+      ),
+    ).toBe(NOW - 500 + STOP_GRACE_MS);
+  });
 });
