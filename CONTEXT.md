@@ -27,6 +27,9 @@ The tier for finished work with evidence to check: a diff, a PR, tests. Includes
 **FYI**:
 The tier for a report with nothing to verify, including a parent's summary of its `parent`-audience children. Opening it clears it.
 
+**Inbox start**:
+When the plugin first ran. Verify and FYI items only cover work whose latest attention is after it (ADR 0010).
+
 **Evidence**:
 What an item carries for the human to check: diffstat, PR checks, tests, child reports.
 
