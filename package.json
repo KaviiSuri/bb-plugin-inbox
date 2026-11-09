@@ -37,7 +37,8 @@
     "@radix-ui/react-compose-refs": "^1.1.5",
     "@radix-ui/react-slot": "^1.5.0",
     "jotai": "^2.20.3",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "diff": "^8.0.2"
   },
   "devDependencies": {
     "@get-bb/plugin-sdk": "0.6.133",

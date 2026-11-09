@@ -5,6 +5,7 @@
 // Runs after Blocked on you, Broken and running, so asking or failing come
 // back in their own tier and running work never comes back early.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
+import { diffLines } from "diff";
 import type {
   DiffBase,
   Verification,
@@ -49,6 +50,8 @@ export interface ComingBack {
   scoped: boolean;
   /** The files the Verification covered, reachable from the opened row. */
   verifiedPaths: string[];
+  /** Prior file text when captured; old/binary bases may only name paths. */
+  verifiedFiles: DiffBase["files"];
 }
 
 /**
@@ -60,7 +63,7 @@ export function scopeTarget(base: DiffBase): string | null {
 }
 
 /** A revision's new side (mode and blob): the file's content now. */
-function contentOf(revision: string): string {
+export function contentOf(revision: string): string {
   return revision.split(":").slice(2).join(":");
 }
 
@@ -72,13 +75,32 @@ function contentOf(revision: string): string {
 export function scopeChanges(
   files: readonly ChangedFile[],
   base: DiffBase,
-): { diff: DiffStat | null; paths: string[] } {
-  const verified = new Map(
-    base.files.map((file) => [file.path, contentOf(file.revision)]),
-  );
-  const changed = files.filter(
-    (file) => verified.get(file.path) !== contentOf(file.revision),
-  );
+  /** New contents for verified paths that changed or disappeared from files. */
+  contents: Readonly<Record<string, string>> = {},
+): { diff: DiffStat | null; paths: string[] } | null {
+  const verified = new Map(base.files.map((file) => [file.path, file]));
+  const current = new Map(files.map((file) => [file.path, file]));
+  const changed = files.filter((file) => !verified.has(file.path));
+  for (const old of base.files) {
+    const file = current.get(old.path);
+    if (file && contentOf(old.revision) === contentOf(file.revision)) continue;
+    const text = contents[old.path];
+    if (old.content === undefined || text === undefined) return null;
+    if (old.content === text) {
+      // Equal text can still be an executable-bit change.
+      if (!file || old.revision.split(":")[2] === file.revision.split(":")[2]) continue;
+      changed.push({ path: old.path, revision: file.revision, additions: 0, deletions: 0 });
+      continue;
+    }
+    const parts = diffLines(old.content, text, { timeout: 50, maxEditLength: 10_000 });
+    if (!parts) return null;
+    changed.push({
+      path: old.path,
+      revision: file?.revision ?? "",
+      additions: parts.filter((p) => p.added).reduce((n, p) => n + p.count, 0),
+      deletions: parts.filter((p) => p.removed).reduce((n, p) => n + p.count, 0),
+    });
+  }
   if (changed.length === 0) return { diff: null, paths: [] };
   return {
     diff: {
@@ -119,6 +141,7 @@ function comingBackOf(
     client: verification.client,
     scoped,
     verifiedPaths: verification.diffBase?.files.map((file) => file.path) ?? [],
+    verifiedFiles: verification.diffBase?.files ?? [],
   };
 }
 
@@ -164,17 +187,17 @@ export function comingBack(
     );
   }
 
-  if (!hasEvidence(evidence)) return null;
   const scope = scopedChangesFor(thread, verification, snapshot);
   if (scope === "loading") return { kind: "none" };
   if (scope === "unscoped") {
-    const reason = turnedFailing
+    if (!hasEvidence(evidence)) return null;
+    const reason = pullRequest?.checks.state === "failing"
       ? `New work; ${failingChecks(pullRequest)}`
       : "New work; couldn't tell what changed since you verified";
     return back(verification, reason, evidence, false);
   }
   if (scope.diff) {
-    const reason = turnedFailing
+    const reason = pullRequest?.checks.state === "failing"
       ? `New changes; ${failingChecks(pullRequest)}`
       : "New changes since you verified";
     return back(verification, reason, { diff: scope.diff, pullRequest }, true);
@@ -202,7 +225,7 @@ function scopedChangesFor(
   snapshot: InboxSnapshot,
 ): { diff: DiffStat | null } | "loading" | "unscoped" {
   const base = verification.diffBase;
-  if (!base || scopeTarget(base) === null) return "unscoped";
+  if (!base || scopeTarget(base) === null || !thread.environment?.id) return "unscoped";
   const scoped = snapshot.scoped[thread.id];
   if (
     !scoped ||

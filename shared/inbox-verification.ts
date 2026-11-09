@@ -13,7 +13,12 @@ export const diffBaseSchema = z
     headSha: z.string().nullable(),
     mergeBaseRef: z.string().nullable(),
     files: z.array(
-      z.object({ path: z.string(), revision: z.string() }).strict(),
+      z.object({
+        path: z.string(),
+        revision: z.string(),
+        /** Text at sign-off, including uncommitted work; absent on older bases. */
+        content: z.string().optional(),
+      }).strict(),
     ),
   })
   .strict();

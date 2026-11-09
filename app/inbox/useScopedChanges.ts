@@ -5,6 +5,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSdk, type PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import type { Verification } from "../../shared/inbox-verification.js";
+import { gitFileSideSchema, textFromSide } from "../../shared/inbox-git-content.js";
+import { contentOf } from "./model/coming-back.js";
 import { gitFilesSchema, GIT_PLUGIN_ID } from "./evidence.js";
 import {
   isRunning,
@@ -84,12 +86,36 @@ export function useScopedChanges(
           outputSchema: gitFilesSchema,
           signal: controller.signal,
         })
-        .then((result): ScopedChanges => {
-          if (result.outcome !== "available" || !("files" in result)) {
+        .then(async (result): Promise<ScopedChanges> => {
+          if (result.outcome !== "available" || !("files" in result) || result.mergeBaseRef !== target.sha) {
+            // Rewritten/diverged history: a merge-base comparison is not a
+            // comparison with the verified head. Don't label it as scoped.
             return { ...stamp, outcome: "unavailable" };
           }
-          const scoped = scopeChanges(result.files, verification.diffBase!);
-          return { ...stamp, outcome: "available", ...scoped };
+          const base = verification.diffBase!;
+          const contents: Record<string, string> = {};
+          for (const old of base.files) {
+            const current = result.files.find((file) => file.path === old.path);
+            if (current && contentOf(current.revision) === contentOf(old.revision)) continue;
+            if (old.content === undefined) return { ...stamp, outcome: "unavailable" };
+            const side = await sdk.plugins.callRpc({
+              pluginId: GIT_PLUGIN_ID,
+              method: "fileSide",
+              input: {
+                environmentId: target.environmentId,
+                query: { target: "all", mergeBaseRef: target.sha, path: old.path, side: "new" },
+              },
+              outputSchema: gitFileSideSchema,
+              signal: controller.signal,
+            });
+            const text = textFromSide(side);
+            if (text === undefined) return { ...stamp, outcome: "unavailable" };
+            contents[old.path] = text;
+          }
+          const scoped = scopeChanges(result.files, base, contents);
+          return scoped
+            ? { ...stamp, outcome: "available", ...scoped }
+            : { ...stamp, outcome: "unavailable" };
         })
         .catch((): ScopedChanges | null =>
           controller.signal.aborted ? null : { ...stamp, outcome: "unavailable" },

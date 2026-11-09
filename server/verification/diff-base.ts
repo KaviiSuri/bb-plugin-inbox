@@ -10,6 +10,7 @@ import type {
   PrChecksState,
 } from "../../shared/inbox-verification.js";
 import { prChecksStateSchema } from "../../shared/inbox-verification.js";
+import { gitFileSideSchema, MAX_SNAPSHOT_FILES, textFromSide } from "../../shared/inbox-git-content.js";
 
 const gitStatusSchema = z.record(
   z.string(),
@@ -103,10 +104,35 @@ async function readDiffBase(
       outputSchema: gitFilesSchema,
     });
     if (files.outcome !== "available" || !("files" in files)) return null;
+    // A head SHA alone cannot represent uncommitted work. Preserve bounded
+    // text snapshots too, so a later edit is compared with what was signed
+    // off, not with the file as it was at HEAD. Old/binary/large bases without
+    // text fall back explicitly rather than claiming an exact scoped diff.
+    const captured = [];
+    for (const [index, file] of files.files.entries()) {
+      let content: string | undefined;
+      if (index < MAX_SNAPSHOT_FILES && files.mergeBaseRef) {
+        try {
+          const side = await bb.sdk.plugins.callRpc({
+            pluginId: "bb--git",
+            method: "fileSide",
+            input: {
+              environmentId,
+              query: { target: "all", mergeBaseRef: files.mergeBaseRef, path: file.path, side: "new" },
+            },
+            outputSchema: gitFileSideSchema,
+          });
+          content = textFromSide(side);
+        } catch {
+          // Still record the sign-off; future work uses an honest fallback.
+        }
+      }
+      captured.push({ path: file.path, revision: file.revision, ...(content === undefined ? {} : { content }) });
+    }
     return {
       headSha: checkout.headSha ?? null,
       mergeBaseRef: files.mergeBaseRef,
-      files: files.files.map(({ path, revision }) => ({ path, revision })),
+      files: captured,
     };
   } catch (error) {
     bb.log.warn(`verify: could not read git for ${environmentId}: ${message(error)}`);

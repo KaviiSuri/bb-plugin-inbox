@@ -27,8 +27,8 @@ const BASE: DiffBase = {
   headSha: "aaaa111",
   mergeBaseRef: "base999",
   files: [
-    { path: "a.ts", revision: "100644:1111:100644:a0a0" },
-    { path: "b.ts", revision: "100644:2222:100644:b0b0" },
+    { path: "a.ts", revision: "100644:1111:100644:a0a0", content: "one\ntwo\n" },
+    { path: "b.ts", revision: "100644:2222:100644:b0b0", content: "b\n" },
   ],
 };
 
@@ -120,6 +120,7 @@ describe("deriveInbox: coming back (ADR 0003)", () => {
           client: "Laptop",
           scoped: true,
           verifiedPaths: ["a.ts", "b.ts"],
+          verifiedFiles: BASE.files,
         },
       }),
     ]);
@@ -158,8 +159,18 @@ describe("deriveInbox: coming back (ADR 0003)", () => {
 
   it("comes back as FYI when the new work left nothing to verify at all", () => {
     expect(
-      view({ evidence: { env_a: NO_EVIDENCE } }).newForYou,
+      view({ evidence: { env_a: NO_EVIDENCE }, scoped: { thr_v: NOTHING_NEW } }).newForYou,
     ).toMatchObject([{ tier: "fyi" }]);
+  });
+
+  it("still asks to Verify a revert of verified uncommitted work when git has no remaining HEAD diff", () => {
+    expect(view({
+      evidence: { env_a: NO_EVIDENCE },
+      scoped: { thr_v: { ...NEW_CHANGES, diff: { fileCount: 1, insertions: 0, deletions: 1 } } },
+    }).newForYou).toMatchObject([{
+      tier: "verify",
+      evidence: { diff: { fileCount: 1, insertions: 0, deletions: 1 } },
+    }]);
   });
 
   it("holds back until the scoped changes for this finish have loaded", () => {
@@ -312,17 +323,38 @@ describe("scopeChanges", () => {
           file("c.ts", "000000:0000:100644:c1c1", 10, 0),
         ],
         BASE,
+        { "a.ts": "one\nthree\n", "b.ts": "b\n" },
       ),
     ).toEqual({
-      diff: { fileCount: 2, insertions: 14, deletions: 1 },
-      paths: ["a.ts", "c.ts"],
+      diff: { fileCount: 2, insertions: 11, deletions: 1 },
+      paths: ["c.ts", "a.ts"],
     });
+  });
+
+  it("counts only the extra line after signing off an uncommitted addition, not the whole file", () => {
+    expect(scopeChanges(
+      [file("a.ts", "000000:0000:100644:aaaa", 3, 0)],
+      { ...BASE, files: [BASE.files[0]!] },
+      { "a.ts": "one\ntwo\nthree\n" },
+    )).toEqual({ diff: { fileCount: 1, insertions: 1, deletions: 0 }, paths: ["a.ts"] });
+  });
+
+  it("counts reverting a verified uncommitted edit even when git now has no diff against HEAD", () => {
+    expect(scopeChanges([], { ...BASE, files: [BASE.files[0]!] }, { "a.ts": "one\n" }))
+      .toEqual({ diff: { fileCount: 1, insertions: 0, deletions: 1 }, paths: ["a.ts"] });
+  });
+
+  it("falls back instead of labelling an old base with no content snapshot as exactly scoped", () => {
+    expect(scopeChanges(
+      [file("a.ts", "100644:1111:100644:ffff", 40, 0)],
+      { ...BASE, files: [{ path: "a.ts", revision: "100644:1111:100644:a0a0" }] },
+    )).toBeNull();
   });
 
   it("leaves out files whose content is what was verified, even against another old side", () => {
     // b.ts was uncommitted at sign-off and committed since.
     expect(
-      scopeChanges([file("b.ts", "100644:9999:100644:b0b0", 3, 3)], BASE),
+      scopeChanges([file("b.ts", "100644:9999:100644:b0b0", 3, 3)], BASE, { "a.ts": "one\ntwo\n" }),
     ).toEqual({ diff: null, paths: [] });
   });
 });

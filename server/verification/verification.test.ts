@@ -112,6 +112,22 @@ describe("verify", () => {
     );
   });
 
+  it("keeps the actual text at sign-off, including uncommitted work, for an exact later comparison", async () => {
+    const { harness, callRpc, work } = await setup();
+    const ordinary = bundledPlugins(work);
+    let content = "one\ntwo\n";
+    callRpc.mockImplementation(async (args) => args.method === "fileSide"
+      ? { outcome: "available", file: { content, contentEncoding: "utf8" } }
+      : ordinary(args));
+    await harness.behavior.callRpc("verify", { threadId: "thr_1", client: "Mac" });
+    content = "one\ntwo\nthree\n";
+    await expect(harness.behavior.callRpc("verifications", { keys: ["thr_1"] }))
+      .resolves.toMatchObject({ thr_1: { diffBase: { files: [{ path: "a.ts", content: "one\ntwo\n" }] } } });
+    await harness.behavior.callRpc("verify", { threadId: "thr_1", client: "Mac" });
+    await expect(harness.behavior.callRpc("verifications", { keys: ["thr_1"] }))
+      .resolves.toMatchObject({ thr_1: { diffBase: { files: [{ content: "one\ntwo\nthree\n" }] } } });
+  });
+
   it("refreshes the thread's reads in every client", async () => {
     const { harness } = await setup();
     await harness.behavior.callRpc("verify", { threadId: "thr_1", client: "Mac" });

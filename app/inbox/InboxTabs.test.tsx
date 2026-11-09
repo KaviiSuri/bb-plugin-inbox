@@ -434,7 +434,7 @@ describe("Inbox: coming back", () => {
             headSha: "aaaa111",
             mergeBaseRef: "base999",
             files: [
-              { path: "src/a.ts", revision: "100644:1111:100644:a0a0" },
+              { path: "src/a.ts", revision: "100644:1111:100644:a0a0", content: "a\n" },
               { path: "src/b.ts", revision: "100644:2222:100644:b0b0" },
             ],
           },
@@ -449,6 +449,9 @@ describe("Inbox: coming back", () => {
     input?: unknown;
     outputSchema: { parse(value: unknown): T };
   }): Promise<T> {
+    if (args.method === "fileSide") {
+      return args.outputSchema.parse({ outcome: "available", file: { content: "a\n", contentEncoding: "utf8" } });
+    }
     expect(args).toMatchObject({
       pluginId: "bb--git",
       method: "files",
@@ -459,6 +462,7 @@ describe("Inbox: coming back", () => {
     });
     return args.outputSchema.parse({
       outcome: "available",
+      mergeBaseRef: "aaaa111",
       files: [
         // Unchanged since the Verification: left out.
         { path: "src/b.ts", revision: "100644:9999:100644:b0b0", additions: 9, deletions: 9 },
@@ -482,7 +486,7 @@ describe("Inbox: coming back", () => {
     );
 
     fireEvent.click(await screen.findByRole("button", { name: VERIFY_ROW }));
-    await screen.findByText("New changes since you verified");
+    await screen.findByText("New changes; PR #12: 2 of 7 checks failing");
     expect(screen.getByText("1 file · +5 −2")).toBeTruthy();
     expect(screen.queryByText("3 files · +40 −12")).toBeNull();
 
@@ -494,7 +498,38 @@ describe("Inbox: coming back", () => {
     const list = screen.getByRole("list", { name: "Already verified" });
     expect(within(list).getByText("src/a.ts")).toBeTruthy();
     expect(within(list).getByText("src/b.ts")).toBeTruthy();
+    const priorFile = within(list).getByText("src/a.ts");
+    expect(priorFile.closest("details")?.open).toBe(false);
+    fireEvent.click(priorFile);
+    expect(priorFile.closest("details")?.open).toBe(true);
+    expect(within(list).getByText("a")).toBeTruthy();
     expect(screen.getByText("Verified on Laptop · desktop")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Verify" })).toBeTruthy();
+  });
+});
+
+describe("Inbox: the verifying client sees the thread come back", () => {
+  it("reads the thread's sign-offs again once the server has the Verification", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const signOffs = signOffRpc({}, {});
+    const reads = vi.fn(signOffs.verifications);
+    renderList({ activeTab: "inbox" }, props(), {}, {
+      ...signOffs,
+      verifications: reads,
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add retry to webhook sender: verify" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Verify" }));
+    await waitFor(() => expect(signOffs.verify).toHaveBeenCalledOnce());
+
+    // Otherwise the prediction, which covers all future work, can outlive the
+    // write and the thread never comes back here.
+    await waitFor(() =>
+      expect(reads).toHaveBeenLastCalledWith({ keys: ["thr_done"] }),
+    );
+    const after = reads.mock.invocationCallOrder.at(-1)!;
+    expect(after).toBeGreaterThan(signOffs.verify.mock.invocationCallOrder[0]!);
   });
 });

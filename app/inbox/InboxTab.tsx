@@ -48,7 +48,7 @@ export function InboxTab({
   };
   const [openId, setOpenId] = useState<string | null>(null);
   const { view, handlers } = useHeldView(state);
-  const actions = useSignOffActions();
+  const actions = useSignOffActions(state.refreshSignOffs);
 
   if (!state.ready) return null;
   const empty = view.newForYou.length === 0 && view.seen.length === 0;
@@ -324,12 +324,18 @@ function AlreadyVerified({ comingBack }: { comingBack: ComingBack }) {
       {expanded ? (
         <div className="flex flex-col gap-0.5 pb-1 pl-2.5">
           <ul aria-label="Already verified" className="flex flex-col gap-0.5">
-            {comingBack.verifiedPaths.map((path) => (
-              <li
-                key={path}
-                className="text-xs break-all text-muted-foreground"
-              >
-                {path}
+            {comingBack.verifiedFiles.map(({ path, content }) => (
+              <li key={path} className="min-w-0 text-xs break-all text-muted-foreground">
+                {content === undefined ? path : (
+                  <details>
+                    <summary className="flex min-h-10 cursor-pointer items-center rounded-md py-1">
+                      {path}
+                    </summary>
+                    <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-all rounded border border-border-hairline p-2 text-[11px]">
+                      {content || "(empty file)"}
+                    </pre>
+                  </details>
+                )}
               </li>
             ))}
           </ul>

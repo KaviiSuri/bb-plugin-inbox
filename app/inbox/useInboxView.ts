@@ -40,6 +40,8 @@ export interface InboxViewState {
   ready: boolean;
   view: InboxView;
   threadsById: ReadonlyMap<string, PluginSidebarThread>;
+  /** Reads one thread's Verification and Later again. */
+  refreshSignOffs(threadId: string): Promise<void>;
 }
 
 export function useInboxView(): InboxViewState {
@@ -99,6 +101,7 @@ export function useInboxView(): InboxViewState {
     ready: status !== "loading" && signOffs.loaded,
     view,
     threadsById,
+    refreshSignOffs: signOffs.refresh,
   };
 }
 
