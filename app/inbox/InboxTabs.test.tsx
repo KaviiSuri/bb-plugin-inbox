@@ -432,3 +432,118 @@ describe("Inbox: Verify and Later", () => {
     );
   });
 });
+
+describe("Inbox: coming back", () => {
+  const VERIFY_ROW = "Add retry to webhook sender: verify";
+  /** thr_done was verified at 10, covering a.ts and b.ts; it finished again at 15. */
+  const verified = () =>
+    signOffRpc(
+      {
+        thr_done: {
+          threadId: "thr_done",
+          verifiedAt: 10,
+          client: "Laptop · desktop",
+          diffBase: {
+            headSha: "aaaa111",
+            mergeBaseRef: "base999",
+            files: [
+              { path: "src/a.ts", revision: "100644:1111:100644:a0a0", content: "a\n", headMode: "100644" },
+              { path: "src/b.ts", revision: "100644:2222:100644:b0b0" },
+            ],
+          },
+          prChecksState: "failing",
+        },
+      },
+      {},
+    );
+  async function files<T>(args: {
+    pluginId: string;
+    method: string;
+    input?: unknown;
+    outputSchema: { parse(value: unknown): T };
+  }): Promise<T> {
+    if (args.method === "fileSide") {
+      return args.outputSchema.parse({ outcome: "available", file: { content: "a\n", contentEncoding: "utf8" } });
+    }
+    expect(args).toMatchObject({
+      pluginId: "bb--git",
+      method: "files",
+      input: {
+        environmentId: "env_done",
+        target: { type: "all", mergeBaseBranch: "aaaa111" },
+      },
+    });
+    return args.outputSchema.parse({
+      outcome: "available",
+      mergeBaseRef: "aaaa111",
+      truncated: false,
+      files: [
+        // Unchanged since the Verification: left out.
+        { path: "src/b.ts", revision: "100644:9999:100644:b0b0", additions: 9, deletions: 9 },
+        { path: "src/c.ts", revision: "000000:0000:100644:c1c1", additions: 5, deletions: 2 },
+      ],
+    });
+  }
+
+  it("opens with the diffstat of only what's new, and what was already verified a tap away", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    renderList(
+      { activeTab: "inbox" },
+      props(),
+      {
+        sdk: {
+          threads: { interactions: { list: async () => [] } },
+          plugins: { callRpc: files },
+        },
+      },
+      verified(),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: VERIFY_ROW }));
+    await screen.findByText("New changes; PR #12: 2 of 7 checks failing");
+    expect(screen.getByText("1 file · +5 −2")).toBeTruthy();
+    expect(screen.queryByText("3 files · +40 −12")).toBeNull();
+
+    // Already verified: there, but folded away.
+    expect(screen.queryByRole("list", { name: "Already verified" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Already verified · 2 files/ }),
+    );
+    const list = screen.getByRole("list", { name: "Already verified" });
+    expect(within(list).getByText("src/a.ts")).toBeTruthy();
+    expect(within(list).getByText("src/b.ts")).toBeTruthy();
+    const priorFile = within(list).getByText("src/a.ts");
+    expect(priorFile.closest("details")?.open).toBe(false);
+    fireEvent.click(priorFile);
+    expect(priorFile.closest("details")?.open).toBe(true);
+    expect(within(list).getByText("a")).toBeTruthy();
+    expect(screen.getByText("Verified on Laptop · desktop")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Verify" })).toBeTruthy();
+  });
+});
+
+describe("Inbox: the verifying client sees the thread come back", () => {
+  it("reads the thread's sign-offs again once the server has the Verification", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const signOffs = signOffRpc({}, {});
+    const reads = vi.fn(signOffs.verifications);
+    renderList({ activeTab: "inbox" }, props(), {}, {
+      ...signOffs,
+      verifications: reads,
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add retry to webhook sender: verify" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Verify" }));
+    await waitFor(() => expect(signOffs.verify).toHaveBeenCalledOnce());
+
+    // Otherwise the prediction, which covers all future work, can outlive the
+    // write and the thread never comes back here.
+    await waitFor(() =>
+      expect(reads).toHaveBeenLastCalledWith({ keys: ["thr_done"] }),
+    );
+    const after = reads.mock.invocationCallOrder.at(-1)!;
+    expect(after).toBeGreaterThan(signOffs.verify.mock.invocationCallOrder[0]!);
+  });
+});

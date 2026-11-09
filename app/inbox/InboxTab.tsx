@@ -1,10 +1,11 @@
 // The Inbox tab in "Paper dots" (ADR 0001): one-line rows (dot, title, one
 // word) under New for you, then a faded Seen band. Tapping a row opens its
-// reason line, its evidence (Verify items only) and visible buttons, one row
-// at a time: Verify on Verify items only, Answer or Open, and Later. A child's
-// own item names its parent and why it has one; folded children's news is
-// listed with Open helper for a child's permission. Running threads are one
-// counted line in a sticky footer, never rows.
+// reason line, its evidence (Verify items only; scoped to what's new when a
+// verified thread is coming back, with what was already verified a tap away)
+// and visible buttons: Verify on Verify items only, Answer or Open, and Later.
+// A child's own item names its parent and why it has one; folded children's
+// news is listed with Open helper for a child's permission. Running threads
+// are one counted line in a sticky footer, never rows.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ThreadTitle,
@@ -19,7 +20,12 @@ import { cn } from "@/lib/utils";
 import { AudienceLines, FoldedChildren } from "./ChildAudience.js";
 import { describeEvidence } from "./evidence.js";
 import { holdStill, layoutOf, type HeldLayout } from "./hold-still.js";
-import type { InboxItem, RunningThread, Tier } from "./model/index.js";
+import type {
+  ComingBack,
+  InboxItem,
+  RunningThread,
+  Tier,
+} from "./model/index.js";
 import type { InboxViewState } from "./useInboxView.js";
 import { useSignOffActions, type SignOffActions } from "./useSignOffs.js";
 
@@ -47,7 +53,7 @@ export function InboxTab({
   };
   const [openId, setOpenId] = useState<string | null>(null);
   const { view, handlers } = useHeldView(state);
-  const actions = useSignOffActions();
+  const actions = useSignOffActions(state.refreshSignOffs);
 
   if (!state.ready) return null;
   const empty = view.newForYou.length === 0 && view.seen.length === 0;
@@ -266,6 +272,9 @@ function ItemRow({
                 </span>
               ))
             : null}
+          {item.comingBack && item.comingBack.verifiedPaths.length > 0 ? (
+            <AlreadyVerified comingBack={item.comingBack} />
+          ) : null}
           <AudienceLines item={item} />
           <FoldedChildren item={item} onOpenThread={onOpenThread} />
           <span className="-ml-2.5 flex flex-wrap items-center gap-1.5 pt-0.5">
@@ -309,6 +318,56 @@ function ItemRow({
               {failure}
             </span>
           ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** What the Verification covered: out of the way, one tap to see. */
+function AlreadyVerified({ comingBack }: { comingBack: ComingBack }) {
+  const [expanded, setExpanded] = useState(false);
+  const count = comingBack.verifiedPaths.length;
+  return (
+    <div className="-ml-2.5 flex flex-col">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((open) => !open)}
+        className={cn(
+          "inline-flex w-fit items-center gap-1 rounded-md px-2.5 text-left text-xs text-subtle-foreground hover:text-muted-foreground max-md:text-sm",
+          BUTTON_HEIGHT_CLASS,
+        )}
+      >
+        <span>
+          Already verified · {count === 1 ? "1 file" : `${count} files`}
+        </span>
+        <Icon
+          name="ChevronRight"
+          className={cn("size-3 transition-transform", expanded && "rotate-90")}
+        />
+      </button>
+      {expanded ? (
+        <div className="flex flex-col gap-0.5 pb-1 pl-2.5">
+          <ul aria-label="Already verified" className="flex flex-col gap-0.5">
+            {comingBack.verifiedFiles.map(({ path, content }) => (
+              <li key={path} className="min-w-0 text-xs break-all text-muted-foreground">
+                {content === undefined ? path : (
+                  <details>
+                    <summary className="flex min-h-10 cursor-pointer items-center rounded-md py-1">
+                      {path}
+                    </summary>
+                    <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-all rounded border border-border-hairline p-2 text-[11px]">
+                      {content || "(empty file)"}
+                    </pre>
+                  </details>
+                )}
+              </li>
+            ))}
+          </ul>
+          <span className="text-xs text-subtle-foreground">
+            Verified on {comingBack.client}
+          </span>
         </div>
       ) : null}
     </div>

@@ -130,3 +130,21 @@ function checksLabel(checks: PullRequestEvidence["checks"]): string {
       return "checks unknown";
   }
 }
+
+/** `bb--git files`: the changed files and their revisions for one target. */
+export const gitFilesSchema = z.union([
+  z.object({
+    outcome: z.literal("available"),
+    mergeBaseRef: z.string().nullable(),
+    truncated: z.boolean(),
+    files: z.array(
+      z.object({
+        path: z.string(),
+        revision: z.string(),
+        additions: z.number(),
+        deletions: z.number(),
+      }),
+    ),
+  }),
+  z.object({ outcome: z.string() }),
+]);

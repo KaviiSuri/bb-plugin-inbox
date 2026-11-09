@@ -10,6 +10,7 @@ import type {
   PrChecksState,
 } from "../../shared/inbox-verification.js";
 import { prChecksStateSchema } from "../../shared/inbox-verification.js";
+import { gitFileSideSchema, MAX_SNAPSHOT_FILES, textFromSide } from "../../shared/inbox-git-content.js";
 
 const gitStatusSchema = z.record(
   z.string(),
@@ -28,8 +29,9 @@ const gitStatusSchema = z.record(
 const gitFilesSchema = z.union([
   z.object({
     outcome: z.literal("available"),
-    files: z.array(z.object({ path: z.string(), revision: z.string() })),
+    files: z.array(z.object({ path: z.string(), revision: z.string(), previousPath: z.string().nullable().optional() })),
     mergeBaseRef: z.string().nullable(),
+    truncated: z.boolean().optional(),
   }),
   z.object({ outcome: z.string() }),
 ]);
@@ -103,10 +105,60 @@ async function readDiffBase(
       outputSchema: gitFilesSchema,
     });
     if (files.outcome !== "available" || !("files" in files)) return null;
+    // A head SHA alone cannot represent uncommitted work. Preserve bounded
+    // text snapshots too, so a later edit is compared with what was signed
+    // off, not with the file as it was at HEAD. Old/binary/large bases without
+    // text fall back explicitly rather than claiming an exact scoped diff.
+    // The old side of target=all is the branch merge base, not HEAD.
+    // Only the uncommitted read can establish a changed path's HEAD mode.
+    let uncommitted: z.infer<typeof gitFilesSchema> | undefined;
+    try {
+      uncommitted = await bb.sdk.plugins.callRpc({
+        pluginId: "bb--git",
+        method: "files",
+        input: { environmentId, target: { type: "uncommitted" }, ignoreWhitespace: false },
+        outputSchema: gitFilesSchema,
+      });
+    } catch {
+      // Missing mode metadata makes equal-text ambiguous returns unscoped.
+    }
+    const captured = [];
+    for (const [index, file] of files.files.entries()) {
+      let headMode: string | undefined;
+      if (uncommitted?.outcome === "available" && "files" in uncommitted) {
+        const row = uncommitted.files.find((entry) => entry.path === file.path);
+        if (row && !row.previousPath) headMode = row.revision.split(":")[0];
+        else if (!row && uncommitted.truncated === false) headMode = file.revision.split(":")[2];
+        if (headMode && !/^[0-7]{6}$/.test(headMode)) headMode = undefined;
+      }
+      let content: string | undefined;
+      if (index < MAX_SNAPSHOT_FILES && files.mergeBaseRef) {
+        try {
+          const side = await bb.sdk.plugins.callRpc({
+            pluginId: "bb--git",
+            method: "fileSide",
+            input: {
+              environmentId,
+              query: { target: "all", mergeBaseRef: files.mergeBaseRef, path: file.path, side: "new" },
+            },
+            outputSchema: gitFileSideSchema,
+          });
+          content = textFromSide(side);
+        } catch {
+          // Still record the sign-off; future work uses an honest fallback.
+        }
+      }
+      captured.push({
+        path: file.path,
+        revision: file.revision,
+        ...(content === undefined ? {} : { content }),
+        ...(headMode === undefined ? {} : { headMode }),
+      });
+    }
     return {
       headSha: checkout.headSha ?? null,
       mergeBaseRef: files.mergeBaseRef,
-      files: files.files.map(({ path, revision }) => ({ path, revision })),
+      files: captured,
     };
   } catch (error) {
     bb.log.warn(`verify: could not read git for ${environmentId}: ${message(error)}`);

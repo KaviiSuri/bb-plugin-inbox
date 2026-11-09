@@ -237,6 +237,35 @@ describe("deriveInbox: Audience, a child that answers to its parent folds in", (
     expect(rows(view)).toEqual([]);
   });
 
+  it("keeps scoped coming-back evidence and verification metadata when child reports fold into it", () => {
+    const view = deriveInbox(snapshot({
+      threads: [
+        parent({ environment: environment("env_p"), latestAttentionAt: 200, lastReadAt: 0 }),
+        child("thr_r", { latestAttentionAt: 230 }),
+      ],
+      evidence: { env_p: DIFF },
+      verifications: {
+        thr_parent: {
+          threadId: "thr_parent", verifiedAt: 100, client: "test",
+          diffBase: { headSha: "head", mergeBaseRef: "base", files: [{ path: "old.ts", revision: "old" }] },
+          prChecksState: null,
+        },
+      },
+      scoped: {
+        thr_parent: {
+          outcome: "available", verifiedAt: 100, attentionAt: 200,
+          diff: { fileCount: 1, insertions: 2, deletions: 0 }, paths: ["new.ts"],
+        },
+      },
+    }));
+    expect(view.newForYou).toMatchObject([{
+      threadId: "thr_parent", tier: "verify", attentionAt: 230,
+      evidence: { diff: { fileCount: 1, insertions: 2, deletions: 0 } },
+      comingBack: { verifiedAt: 100, scoped: true, verifiedPaths: ["old.ts"] },
+      folded: [{ threadId: "thr_r", state: "reported" }],
+    }]);
+  });
+
   it("moves the parent's item to New for you when a child reports after the parent was opened", () => {
     const view = deriveInbox(
       snapshot({

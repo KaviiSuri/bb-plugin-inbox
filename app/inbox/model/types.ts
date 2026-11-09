@@ -6,6 +6,7 @@ import type {
   Verification,
 } from "../../../shared/inbox-verification.js";
 import type { PendingInteractionSummary } from "./blocked.js";
+import type { ComingBack, ScopedChanges } from "./coming-back.js";
 import type { RuntimeTracking } from "./running.js";
 import type { EnvironmentEvidence } from "./verify.js";
 
@@ -34,6 +35,8 @@ export interface InboxSnapshot {
   verifications: Readonly<Record<string, Verification>>;
   /** The latest Later per thread id. */
   laters: Readonly<Record<string, Later>>;
+  /** Per verified thread id, its changes since the Verification's diff base. */
+  scoped: Readonly<Record<string, ScopedChanges>>;
   /** When the Inbox started (ADR 0010); null while it loads. */
   inboxStartedAt: number | null;
   now: number;
@@ -48,6 +51,8 @@ export interface InboxItem {
   /** What a Verify item carries to check; null on every other tier. */
   evidence: EnvironmentEvidence | null;
   attentionAt: number;
+  /** Set when a verified thread is coming back (ADR 0003). */
+  comingBack?: ComingBack;
   /** A `human`-audience child's item: its parent, named on the row (ADR 0002). */
   parentThreadId?: string;
   /** A `human`-audience child's item: why it got its own item (ADR 0008). */
@@ -86,7 +91,7 @@ export interface InboxView {
 }
 
 /** What an item wants of the human, and its evidence if it has any. */
-export type Need = Pick<InboxItem, "tier" | "word" | "reason"> & {
+export type Need = Pick<InboxItem, "tier" | "word" | "reason" | "comingBack"> & {
   evidence?: EnvironmentEvidence;
 };
 

@@ -26,6 +26,7 @@ export function snapshot(overrides: Partial<InboxSnapshot> = {}): InboxSnapshot 
     evidence: {},
     verifications: {},
     laters: {},
+    scoped: {},
     inboxStartedAt: 0,
     now: NOW,
     ...overrides,

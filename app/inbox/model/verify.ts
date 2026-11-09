@@ -68,7 +68,8 @@ function verifyReason({ diff, pullRequest }: EnvironmentEvidence): string {
 }
 
 /**
- * A finished thread with evidence. Holds back (no item) while the evidence
+ * A finished thread with evidence and no Verification (`comingBack` decides
+ * verified threads first). Holds back (no item) while the evidence
  * loads, so a Verify item doesn't flash up as FYI first.
  */
 export function verify(
@@ -78,9 +79,6 @@ export function verify(
   const evidence = evidenceOf(thread, snapshot);
   if (evidence === undefined) return { kind: "none" };
   if (!hasEvidence(evidence)) return null;
-  if (isVerified(thread, snapshot.verifications[thread.id])) {
-    return { kind: "none" };
-  }
   return item({
     tier: "verify",
     word: "verify",
