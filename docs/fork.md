@@ -117,4 +117,6 @@ tables above if a rename moved, and commit.
 
 `node scripts/fork-upstream.mjs vendor` on its own regenerates the generated
 files at the current pin; a clean `git status` afterwards means they're in
-sync.
+sync. `vendor` never deletes a vendored file; when an upgrade stops needing a
+registry item, remove its files by hand (`fork.test.ts` still passes either
+way).

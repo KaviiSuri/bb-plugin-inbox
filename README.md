@@ -20,6 +20,8 @@ Then pick **Inbox** under Settings → Appearance → Sidebar. Switching back to
 
 While developing, `bb plugin dev .` rebuilds and reloads on every save.
 
+![The fork in bb's sidebar drawer at 390×844](docs/screenshots/fork-phone.png)
+
 ## Checks
 
 ```sh
