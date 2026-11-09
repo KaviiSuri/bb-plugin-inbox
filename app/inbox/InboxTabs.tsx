@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
 import { activeTabAtom } from "./atoms.js";
 import { InboxTab } from "./InboxTab.js";
-import type { InboxView } from "./model.js";
+import type { InboxView } from "./model/index.js";
 import { useInboxView } from "./useInboxView.js";
 import type { SidebarTab } from "../../shared/inbox-preferences.js";
 

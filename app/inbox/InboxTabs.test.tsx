@@ -19,6 +19,7 @@ import {
   PREFERENCES_CHANGED_CHANNEL,
   type PreferenceValues,
 } from "../../shared/preferences.js";
+import { signOffTag } from "../../shared/inbox-verification.js";
 
 const app = await loadPluginApp(() => import("../../app"));
 const registration = app.threadLists[0];
@@ -49,6 +50,22 @@ const THREADS = [
     latestAttentionAt: 10,
   }),
   makeSidebarThread({
+    id: "thr_done",
+    projectId: "proj_app",
+    title: "Add retry to webhook sender",
+    latestAttentionAt: 15,
+    lastReadAt: 16,
+    environment: {
+      id: "env_done",
+      name: "env_done",
+      branchName: "feat/retry",
+      path: "/work/retry",
+      isWorktree: true,
+      providerId: null,
+      workspaceDisplayKind: null,
+    },
+  }),
+  makeSidebarThread({
     id: "thr_quiet",
     projectId: "proj_app",
     title: "Quiet thread",
@@ -67,10 +84,74 @@ function props(): PluginThreadListProps {
   };
 }
 
+/** The server's Verifications, as the plugin's keyed read answers them. */
+type Rows = Record<string, Record<string, unknown>>;
+type MarkInput = { threadId: string; client: string };
+
+const keysOf = (input: unknown) => (input as { keys: string[] }).keys;
+
+function signOffRpc(verifications: Rows, laters: Rows) {
+  const read = (rows: Rows) => (input: unknown) =>
+    Object.fromEntries(keysOf(input).map((key) => [key, rows[key] ?? null]));
+  return {
+    // Before every fixture's attention, so finished threads can be items.
+    inboxStart: () => ({ startedAt: 0 }),
+    verifications: read(verifications),
+    laters: read(laters),
+    verify: vi.fn((input: unknown) => {
+      const { threadId, client } = input as MarkInput;
+      verifications[threadId] = {
+        threadId,
+        verifiedAt: 1_000,
+        client,
+        diffBase: null,
+        prChecksState: "passing",
+      };
+      return verifications[threadId];
+    }),
+    later: vi.fn((input: unknown) => {
+      const { threadId, client } = input as MarkInput;
+      laters[threadId] = { threadId, laterAt: 1_000, client };
+      return laters[threadId];
+    }),
+  };
+}
+
+/** bb--git and bb--github-pr-status answers: env_done has a diff and a PR. */
+const EVIDENCE_RPC = {
+  status: (input: unknown) =>
+    Object.fromEntries(
+      keysOf(input).map((key) => [
+        key,
+        {
+          outcome: "available",
+          workspace: {
+            allChanges: { fileCount: 3, insertions: 40, deletions: 12 },
+          },
+        },
+      ]),
+    ),
+  pullRequests: (input: unknown) =>
+    Object.fromEntries(
+      keysOf(input).map((key) => [
+        key,
+        {
+          outcome: "available",
+          pullRequest: {
+            number: 12,
+            state: "open",
+            checks: { state: "failing", totalCount: 7, failedCount: 2 },
+          },
+        },
+      ]),
+    ),
+};
+
 function renderList(
   preferences: Partial<PreferenceValues>,
   listProps = props(),
   options: RenderSlotOptions = {},
+  signOffs = signOffRpc({}, {}),
 ) {
   const setPreference = vi.fn((input: unknown) => input);
   const slot = renderSlot(registration, listProps, {
@@ -84,6 +165,8 @@ function renderList(
         preferences: { ...defaultPreferences(), ...preferences },
       }),
       setPreference,
+      ...EVIDENCE_RPC,
+      ...signOffs,
     },
     sdk: {
       threads: {
@@ -120,7 +203,7 @@ function renderList(
     },
     ...options,
   });
-  return { slot, setPreference };
+  return { slot, setPreference, signOffs };
 }
 
 afterEach(() => {
@@ -233,5 +316,106 @@ describe("Threads | Inbox tabs", () => {
 
     await screen.findByRole("region", { name: "New for you" });
     expect(screen.queryByText("Quiet thread")).toBeNull();
+  });
+});
+
+describe("Inbox: Verify and Later", () => {
+  const VERIFY_ROW = "Add retry to webhook sender: verify";
+
+  it("opens a Verify row with its reason, diffstat, PR checks, and Verify / Open / Later", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    renderList({ activeTab: "inbox" });
+
+    const seen = await screen.findByRole("region", { name: "Seen" });
+    fireEvent.click(await within(seen).findByRole("button", { name: VERIFY_ROW }));
+
+    await screen.findByText("PR #12: 2 of 7 checks failing");
+    expect(screen.getByText("3 files · +40 −12")).toBeTruthy();
+    expect(screen.getByText("PR #12 · open · 2 of 7 checks failing")).toBeTruthy();
+    for (const name of ["Verify", "Open", "Later"]) {
+      expect(screen.getByRole("button", { name })).toBeTruthy();
+    }
+  });
+
+  it("keeps evidence off the resting row", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    renderList({ activeTab: "inbox" });
+
+    await screen.findByRole("button", { name: VERIFY_ROW });
+    expect(screen.queryByText("3 files · +40 −12")).toBeNull();
+    expect(document.querySelector("[data-inbox-evidence]")).toBeNull();
+  });
+
+  it("offers Verify only on Verify items", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    renderList({ activeTab: "inbox" });
+
+    for (const name of [
+      "Grill: billing edge cases: answer",
+      "Regenerate OpenAPI client: failed",
+    ]) {
+      fireEvent.click(await screen.findByRole("button", { name }));
+      expect(screen.getByRole("button", { name: "Later" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Verify" })).toBeNull();
+    }
+  });
+
+  it("stores a Verification for the thread, naming the client, and clears the row", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const { signOffs } = renderList({ activeTab: "inbox" });
+
+    fireEvent.click(await screen.findByRole("button", { name: VERIFY_ROW }));
+    fireEvent.click(await screen.findByRole("button", { name: "Verify" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: VERIFY_ROW })).toBeNull(),
+    );
+    expect(signOffs.verify).toHaveBeenCalledWith({
+      threadId: "thr_done",
+      client: expect.stringMatching(/ · /),
+    });
+    expect(signOffs.later).not.toHaveBeenCalled();
+  });
+
+  it("puts an item in Later without verifying it", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const { signOffs } = renderList({ activeTab: "inbox" });
+
+    fireEvent.click(await screen.findByRole("button", { name: VERIFY_ROW }));
+    fireEvent.click(await screen.findByRole("button", { name: "Later" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: VERIFY_ROW })).toBeNull(),
+    );
+    expect(signOffs.later).toHaveBeenCalledWith({
+      threadId: "thr_done",
+      client: expect.any(String),
+    });
+    expect(signOffs.verify).not.toHaveBeenCalled();
+  });
+
+  it("clears the row when another client verifies it", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const verifications: Rows = {};
+    const { slot } = renderList(
+      { activeTab: "inbox" },
+      props(),
+      {},
+      signOffRpc(verifications, {}),
+    );
+    await screen.findByRole("button", { name: VERIFY_ROW });
+
+    verifications.thr_done = {
+      threadId: "thr_done",
+      verifiedAt: 1_000,
+      client: "iPhone · browser",
+      diffBase: null,
+      prChecksState: null,
+    };
+    await slot.behavior.experimental_invalidateRpc([signOffTag("thr_done")]);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: VERIFY_ROW })).toBeNull(),
+    );
   });
 });

@@ -1,6 +1,6 @@
 // While the human touches the Inbox, rows keep their band and position so
 // nothing moves from under a finger. Content (word, reason) stays current.
-import type { InboxItem, InboxView } from "./model.js";
+import type { InboxItem, InboxView } from "./model/index.js";
 
 /** Row order per band at the moment the list was touched. */
 export interface HeldLayout {
