@@ -4,10 +4,14 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { blocked } from "./blocked.js";
 import { broken, stuck, stuckDeadlines } from "./broken.js";
+import { fyi } from "./fyi.js";
+import { later } from "./later.js";
 import { graceDeadlines, running, settling } from "./running.js";
+import { verify } from "./verify.js";
 import {
   TIER_ORDER,
   type InboxItem,
+  type ItemRule,
   type InboxSnapshot,
   type InboxView,
   type Outcome,
@@ -23,6 +27,16 @@ export {
   type PendingInteractionSummary,
 } from "./blocked.js";
 export { STUCK_WAITING_FOR_HOST_MS } from "./broken.js";
+export { isLater } from "./later.js";
+export {
+  evidenceOf,
+  hasEvidence,
+  isVerified,
+  NO_EVIDENCE,
+  type DiffStat,
+  type EnvironmentEvidence,
+  type PullRequestEvidence,
+} from "./verify.js";
 export {
   isRunning,
   STOP_GRACE_MS,
@@ -40,7 +54,12 @@ const THREAD_RULES: readonly ThreadRule[] = [
   running,
   broken,
   settling,
+  verify,
+  fyi,
 ];
+
+/** Then the passes over the items, in order. */
+const ITEM_RULES: readonly ItemRule[] = [later];
 
 function outcomeOf(
   thread: PluginSidebarThread,
@@ -61,11 +80,12 @@ function compareItems(a: InboxItem, b: InboxItem): number {
 }
 
 export function deriveInbox(snapshot: InboxSnapshot): InboxView {
-  const newForYou: InboxItem[] = [];
-  const seen: InboxItem[] = [];
+  let items: InboxItem[] = [];
   const runningThreads: RunningThread[] = [];
+  const unread = new Set<string>();
   for (const thread of snapshot.threads) {
     if (thread.isHidden || thread.isArchived) continue;
+    if (thread.isUnread) unread.add(thread.id);
     const outcome = outcomeOf(thread, snapshot);
     if (outcome.kind === "running") {
       runningThreads.push({
@@ -74,15 +94,20 @@ export function deriveInbox(snapshot: InboxSnapshot): InboxView {
         settling: outcome.settling,
       });
     } else if (outcome.kind === "item") {
-      // Seen once the thread was opened since its latest attention.
-      (thread.isUnread ? newForYou : seen).push({
+      const { evidence = null, ...need } = outcome.need;
+      items.push({
         threadId: thread.id,
         title: thread.displayTitle,
-        ...outcome.need,
+        ...need,
+        evidence,
         attentionAt: thread.latestAttentionAt,
       });
     }
   }
+  for (const rule of ITEM_RULES) items = rule(items, snapshot);
+  // Seen once the thread was opened since its latest attention.
+  const newForYou = items.filter((entry) => unread.has(entry.threadId));
+  const seen = items.filter((entry) => !unread.has(entry.threadId));
   newForYou.sort(compareItems);
   seen.sort(compareItems);
   return {

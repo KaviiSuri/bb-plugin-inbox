@@ -57,6 +57,8 @@ describe("deriveInbox: Broken", () => {
     const view = deriveInbox(
       snapshot({ threads: [makeSidebarThread({ id: "thr_ok" })] }),
     );
-    expect(view.newForYou).toEqual([]);
+    expect(view.newForYou).not.toContainEqual(
+      expect.objectContaining({ tier: "broken" }),
+    );
   });
 });
