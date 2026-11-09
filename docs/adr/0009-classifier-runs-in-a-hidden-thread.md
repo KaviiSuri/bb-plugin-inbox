@@ -1,0 +1,3 @@
+# The turn-end classifier runs in a hidden thread on a provider the user picks
+
+Only "did the turn end with a question for me, or a report?" needs a model (ADR 0008's last two signals). bb's AI services run only three fixed jobs (thread titles, commit messages, voice) and a plugin can't send its own prompt through them (get-bb/bb `apps/server/src/services/ai/ai-tasks.ts` at `55135d1`; plugin-sdk 0.6.133 `bb-plugin-sdk.d.ts:10286, 18689`). So the plugin runs the classification in a hidden thread on a provider and model the user picks in a plugin setting, using their existing local login, with no API key. With no provider set, or when the call fails, a plain rule decides: does the last message end with a question to the user? Chosen by the user in the spec thread (#9).
