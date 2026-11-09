@@ -31,6 +31,8 @@ export interface InboxSnapshot {
   verifications: Readonly<Record<string, Verification>>;
   /** The latest Later per thread id. */
   laters: Readonly<Record<string, Later>>;
+  /** When the Inbox started (ADR 0010); null while it loads. */
+  inboxStartedAt: number | null;
   now: number;
 }
 

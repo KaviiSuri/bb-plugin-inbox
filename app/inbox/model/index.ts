@@ -7,6 +7,7 @@ import { broken, stuck, stuckDeadlines } from "./broken.js";
 import { fyi } from "./fyi.js";
 import { later } from "./later.js";
 import { graceDeadlines, running, settling } from "./running.js";
+import { sinceStart } from "./since-start.js";
 import { verify } from "./verify.js";
 import {
   TIER_ORDER,
@@ -54,6 +55,7 @@ const THREAD_RULES: readonly ThreadRule[] = [
   running,
   broken,
   settling,
+  sinceStart,
   verify,
   fyi,
 ];

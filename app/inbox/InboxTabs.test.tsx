@@ -94,6 +94,8 @@ function signOffRpc(verifications: Rows, laters: Rows) {
   const read = (rows: Rows) => (input: unknown) =>
     Object.fromEntries(keysOf(input).map((key) => [key, rows[key] ?? null]));
   return {
+    // Before every fixture's attention, so finished threads can be items.
+    inboxStart: () => ({ startedAt: 0 }),
     verifications: read(verifications),
     laters: read(laters),
     verify: vi.fn((input: unknown) => {

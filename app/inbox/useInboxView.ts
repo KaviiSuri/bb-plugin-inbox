@@ -28,7 +28,7 @@ import {
   type PendingInteractionSummary,
   type RuntimeTracking,
 } from "./model/index.js";
-import { useSignOffs, type SignOffs } from "./useSignOffs.js";
+import { useInboxStart, useSignOffs, type SignOffs } from "./useSignOffs.js";
 
 const NO_TRACKING: RuntimeTracking = {
   running: {},
@@ -50,7 +50,8 @@ export function useInboxView(): InboxViewState {
     [threads],
   );
   const signOffs = useSignOffs(useMemo(() => visible.map((t) => t.id), [visible]));
-  const evidence = useEvidence(visible, signOffs);
+  const inboxStartedAt = useInboxStart();
+  const evidence = useEvidence(visible, signOffs, inboxStartedAt);
   const [tick, setTick] = useState(0);
 
   // Advance the stop/stuck tracking once per new thread list.
@@ -68,11 +69,12 @@ export function useInboxView(): InboxViewState {
       evidence,
       verifications: signOffs.verifications,
       laters: signOffs.laters,
+      inboxStartedAt,
       now: Date.now(),
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, runtime, evidence, signOffs, tick],
+    [threads, interactions, runtime, evidence, signOffs, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
@@ -103,13 +105,15 @@ const MAX_EVIDENCE_KEYS = 200;
 
 /**
  * Evidence for the environments of threads that could be Verify or FYI:
- * stopped, not waiting on the human, and not already verified. An
+ * stopped, not waiting on the human, not already verified, and with work
+ * after the Inbox started (none until that start has loaded). An
  * environment is in the result once both its git status and its pull request
  * have answered (or their read failed), so the model can hold back until then.
  */
 function useEvidence(
   visible: readonly PluginSidebarThread[],
   { verifications }: SignOffs,
+  inboxStartedAt: number | null,
 ): Readonly<Record<string, EnvironmentEvidence>> {
   const keys = useMemo(() => {
     const candidates = visible
@@ -118,6 +122,8 @@ function useEvidence(
           t.environment?.id &&
           !isRunning(t) &&
           !t.hasPendingInteraction &&
+          inboxStartedAt !== null &&
+          t.latestAttentionAt > inboxStartedAt &&
           !isVerified(t, verifications[t.id]),
       )
       .sort((a, b) => b.latestAttentionAt - a.latestAttentionAt);
@@ -127,7 +133,7 @@ function useEvidence(
       ids.add(thread.environment!.id!);
     }
     return [...ids].sort();
-  }, [visible, verifications]);
+  }, [visible, verifications, inboxStartedAt]);
   const keysId = keys.join(",");
   const stableKeys = useMemo(() => keys, [keysId]); // eslint-disable-line react-hooks/exhaustive-deps
 

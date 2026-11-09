@@ -73,6 +73,11 @@ export const verificationRpcContract = defineRpcContract({
     output: z.record(z.string(), laterSchema.nullable()),
     keyTags: (key) => [signOffTag(key)],
   },
+  /** When the Inbox started (ADR 0010); recorded once, on first run. */
+  inboxStart: {
+    input: z.null(),
+    output: z.object({ startedAt: z.number() }).strict(),
+  },
   verify: { input: markInput, output: verificationSchema },
   later: { input: markInput, output: laterSchema },
 });

@@ -191,3 +191,20 @@ describe("keyed reads", () => {
     expect(laters.keyTags?.("thr_1", null)).toEqual([signOffTag("thr_1")]);
   });
 });
+
+describe("inboxStart (ADR 0010)", () => {
+  it("is recorded on the first run and kept by every later run", async () => {
+    vi.setSystemTime(1_000);
+    const first = createFakePluginHost({ pluginId: "inbox" });
+    registerVerification(first.bb);
+    await expect(
+      first.harness.behavior.callRpc("inboxStart", null),
+    ).resolves.toEqual({ startedAt: 1_000 });
+
+    vi.setSystemTime(9_000);
+    const second = await first.harness.lifecycle.reload(registerVerification);
+    await expect(
+      second.harness.behavior.callRpc("inboxStart", null),
+    ).resolves.toEqual({ startedAt: 1_000 });
+  });
+});

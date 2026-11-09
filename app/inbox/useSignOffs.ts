@@ -4,6 +4,7 @@ import { useMemo, useRef } from "react";
 import {
   experimental_useRpcKeyedQuery,
   experimental_useRpcMutation,
+  experimental_useRpcQuery,
 } from "@get-bb/plugin-sdk/app";
 import {
   verificationRpcContract,
@@ -58,6 +59,16 @@ function present<T>(
     if (row) out[id] = row;
   }
   return out;
+}
+
+/** When the Inbox started (ADR 0010); null until the server answers. */
+export function useInboxStart(): number | null {
+  const { data } = experimental_useRpcQuery({
+    contract: verificationRpcContract,
+    method: "inboxStart",
+    input: null,
+  });
+  return data?.startedAt ?? null;
 }
 
 export interface SignOffActions {
