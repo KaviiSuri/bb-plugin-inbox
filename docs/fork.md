@@ -78,8 +78,10 @@ collide at runtime.
 ### 3. Fork-owned files (no upstream counterpart)
 
 `upstream.json`, `scripts/fork-upstream.mjs`, `fork.test.ts` (runs
-`experimental_scanPublicSdkOnly` and checks every `@/` import resolves inside
-the package), `components.json` (shadcn registry pinned to the same commit,
+`experimental_scanPublicSdkOnly`, checks every `@/` import resolves inside
+the package, and fails if the plugin id is `thread-list` or any runtime source
+hard-codes a `thread-list` / `thread-list/<key>` literal, so an upstream merge
+that brings one back goes red), `components.json` (shadcn registry pinned to the same commit,
 for `npx shadcn add @bb/<item>`), `.gitignore`, `package-lock.json`,
 `LICENSE.upstream`, and the repository's own docs (`README.md`, `AGENTS.md`,
 `CONTEXT.md`, `docs/`).
