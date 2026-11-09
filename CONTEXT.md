@@ -38,11 +38,11 @@ _Avoid_: dismiss, done, archive, mark read
 A verified thread that did more work re-enters the inbox when that work finishes, asks or fails, showing only what changed since the verification's diff base. It also comes back under Verify, with no new work, when its PR checks start failing after the verification.
 
 **Audience**:
-Who a child thread answers to, inferred from what the child does (never declared at spawn). A `human` child gets its own item; a `parent` child folds into its parent's FYI item.
+Who a child thread answers to, inferred from what the child does, never declared at spawn (rules in ADR 0008). A `human` child gets its own item; a `parent` child folds into its parent's FYI item.
 
 **Later**:
 Puts an item out of sight without verifying it, until its thread has something new (finishes, asks or fails). It is not a clear.
 _Avoid_: snooze, dismiss
 
 **New for you / Seen**:
-The two bands of the Inbox tab. An item moves to Seen once its thread has been opened; it stays until it's verified (or, for FYI, cleared by that opening).
+The two bands of the Inbox tab. An item moves to Seen once its thread has been opened; it stays until it's verified (or, for FYI, cleared by that opening). The number on the Inbox tab counts only New for you.
