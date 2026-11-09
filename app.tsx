@@ -9,25 +9,43 @@ import { ProjectList } from "./app/list/ProjectList.js";
 import { useSidebarThreadReveal } from "./app/list/useSidebarThreadReveal.js";
 import { moveThreadAction } from "./app/rows/moveThreadAction.js";
 import { ThreadSelectionProvider } from "./app/selection/threadSelection.js";
+import { InboxTabs } from "./app/inbox/InboxTabs.js";
 
 function ThreadList({
   activeThreadId,
   isCompactViewport,
   onNavigate,
 }: PluginThreadListProps) {
-  useSidebarThreadReveal();
   return (
     <CompactViewportOverrideProvider isCompactViewport={isCompactViewport}>
       <TooltipProvider>
         <PreferencesSync />
         <ThreadSelectionProvider activeThreadId={activeThreadId}>
-          <ProjectList
+          <InboxTabs
             activeThreadId={activeThreadId}
-            onProjectSelect={onNavigate}
+            onNavigate={onNavigate}
+            threadsTab={
+              <ThreadsTab
+                activeThreadId={activeThreadId}
+                onNavigate={onNavigate}
+              />
+            }
           />
         </ThreadSelectionProvider>
       </TooltipProvider>
     </CompactViewportOverrideProvider>
+  );
+}
+
+// Mounted only while the Threads tab shows, so revealing the active thread is
+// skipped while the Inbox does.
+function ThreadsTab({
+  activeThreadId,
+  onNavigate,
+}: Pick<PluginThreadListProps, "activeThreadId" | "onNavigate">) {
+  useSidebarThreadReveal();
+  return (
+    <ProjectList activeThreadId={activeThreadId} onProjectSelect={onNavigate} />
   );
 }
 

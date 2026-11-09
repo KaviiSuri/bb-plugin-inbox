@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { inboxPreferenceDefinitions } from "./inbox-preferences.js";
 
 const STRING_MAX_LENGTH = 1_024;
 const LIST_MAX_LENGTH = 10_000;
@@ -220,6 +221,7 @@ export const preferenceDefinitions = {
     "Machine ids whose rows are collapsed.",
     null,
   ),
+  ...inboxPreferenceDefinitions,
 } as const;
 
 export type PreferenceKey = keyof typeof preferenceDefinitions;
