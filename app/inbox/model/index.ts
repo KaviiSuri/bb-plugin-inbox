@@ -4,6 +4,7 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { blocked } from "./blocked.js";
 import { broken, stuck, stuckDeadlines } from "./broken.js";
+import { comingBack } from "./coming-back.js";
 import { fyi } from "./fyi.js";
 import { later } from "./later.js";
 import { graceDeadlines, running, settling } from "./running.js";
@@ -29,6 +30,13 @@ export {
 } from "./blocked.js";
 export { STUCK_WAITING_FOR_HOST_MS } from "./broken.js";
 export { isLater } from "./later.js";
+export {
+  scopeChanges,
+  scopeTarget,
+  type ChangedFile,
+  type ComingBack,
+  type ScopedChanges,
+} from "./coming-back.js";
 export {
   evidenceOf,
   hasEvidence,
@@ -56,6 +64,7 @@ const THREAD_RULES: readonly ThreadRule[] = [
   broken,
   settling,
   sinceStart,
+  comingBack,
   verify,
   fyi,
 ];

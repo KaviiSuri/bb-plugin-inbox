@@ -88,6 +88,12 @@ for `npx shadcn add @bb/<item>`), `.gitignore`, `package-lock.json`,
 
 ### 4. Changes to upstream code
 
+Issue #13 adds no further upstream source seams. Its code stays under
+`app/inbox/`, `server/verification/` and `shared/inbox-*`. The generated
+`package.json` gains `diff` through `FORK_MANIFEST.dependencies` in
+`scripts/fork-upstream.mjs`, for bounded text comparisons against sign-off
+snapshots. Keep that override when regenerating the manifest.
+
 Inbox code lives in `app/inbox/`, `server/verification/`,
 `shared/inbox-preferences.ts`, `shared/inbox-verification.ts`,
 `server/classifier/`, `app/classifier/` and `skills/inbox-classifier/`, and

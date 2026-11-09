@@ -44,6 +44,7 @@ const FORK_MANIFEST = {
       "A fork of bb's sidebar thread list that adds an Inbox tab for triaging agent work.",
   },
   scripts: { build: "bb plugin build ." },
+  dependencies: { diff: "^8.0.2" },
 };
 
 // Fork-owned sources tsconfig.json includes besides upstream's.

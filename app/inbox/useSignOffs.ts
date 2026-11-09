@@ -24,6 +24,8 @@ export interface SignOffs {
   laters: Readonly<Record<string, Later>>;
   /** Both reads have answered at least once. */
   loaded: boolean;
+  /** Reads one thread's Verification and Later again. */
+  refresh(threadId: string): Promise<void>;
 }
 
 export function useSignOffs(threadIds: readonly string[]): SignOffs {
@@ -41,13 +43,21 @@ export function useSignOffs(threadIds: readonly string[]): SignOffs {
   const loadedRef = useRef(false);
   if (!verifications.isLoading && !laters.isLoading) loadedRef.current = true;
   const loaded = loadedRef.current;
+  const { refetchKeys: refetchVerifications } = verifications;
+  const { refetchKeys: refetchLaters } = laters;
   return useMemo(
     () => ({
       verifications: present(verifications.data),
       laters: present(laters.data),
       loaded,
+      async refresh(threadId) {
+        await Promise.all([
+          refetchVerifications([threadId]),
+          refetchLaters([threadId]),
+        ]);
+      },
     }),
-    [verifications.data, laters.data, loaded],
+    [verifications.data, laters.data, loaded, refetchVerifications, refetchLaters],
   );
 }
 
@@ -76,7 +86,16 @@ export interface SignOffActions {
   later(threadId: string): Promise<void>;
 }
 
-export function useSignOffActions(): SignOffActions {
+/**
+ * Verify and Later, predicted at once. `refresh` reads the thread's sign-offs
+ * again once the server has the write: the server's own refresh can land
+ * before the write is acknowledged, and the prediction (which covers all
+ * future work) would then stay until a reload, so the thread could never
+ * come back in this client.
+ */
+export function useSignOffActions(
+  refresh: (threadId: string) => Promise<void>,
+): SignOffActions {
   const verify = experimental_useRpcMutation({
     contract: verificationRpcContract,
     method: "verify",
@@ -105,11 +124,13 @@ export function useSignOffActions(): SignOffActions {
     () => ({
       async verify(threadId) {
         await verify.mutate({ threadId, client: currentClient() });
+        void refresh(threadId);
       },
       async later(threadId) {
         await later.mutate({ threadId, client: currentClient() });
+        void refresh(threadId);
       },
     }),
-    [verify.mutate, later.mutate],
+    [verify.mutate, later.mutate, refresh],
   );
 }
