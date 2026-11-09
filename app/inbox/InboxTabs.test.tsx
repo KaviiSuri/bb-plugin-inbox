@@ -337,6 +337,19 @@ describe("Inbox: Verify and Later", () => {
     }
   });
 
+  it("opening Verify does not mark it read or sign it off through the FYI shortcut", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const markRead = vi.fn(async () => undefined as never);
+    const { signOffs } = renderList({ activeTab: "inbox" }, props(), {
+      sdk: { threads: { markRead, interactions: { list: async () => [] } } },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: VERIFY_ROW }));
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(markRead).not.toHaveBeenCalled();
+    expect(signOffs.verify).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: VERIFY_ROW })).toBeTruthy();
+  });
+
   it("keeps evidence off the resting row", async () => {
     setPreferencesMirrorStorageForTest(null);
     renderList({ activeTab: "inbox" });

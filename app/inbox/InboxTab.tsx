@@ -11,6 +11,7 @@ import {
   experimental_ThreadStatusGlyph as ThreadStatusGlyph,
   experimental_resolveThreadStatus as resolveThreadStatus,
   useBbNavigate,
+  useSdk,
   type PluginSidebarThread,
 } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
@@ -39,6 +40,7 @@ export function InboxTab({
   onNavigate: () => void;
 }) {
   const navigate = useBbNavigate();
+  const sdk = useSdk();
   const openThread = (threadId: string) => {
     navigate.toThread(threadId);
     onNavigate();
@@ -59,7 +61,16 @@ export function InboxTab({
       onToggle={() =>
         setOpenId((current) => (current === item.threadId ? null : item.threadId))
       }
-      onOpenThread={openThread}
+      onOpenThread={(id) => {
+        if (id === item.threadId && item.tier === "fyi") {
+          // Navigating to the already-active owner does not remount its chat.
+          // Explicitly read it so opening new folded reports clears FYI too.
+          void sdk.threads.markRead({ threadId: id }).catch(() => {
+            // Navigation still opens the thread; a later Open can retry.
+          });
+        }
+        openThread(id);
+      }}
       actions={actions}
       onSignedOff={() => setOpenId(null)}
     />

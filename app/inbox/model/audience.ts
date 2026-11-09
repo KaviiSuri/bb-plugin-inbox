@@ -110,17 +110,26 @@ function newsOf(
   const failure = stuckOutcome ?? broken(child);
   if (!failure && settling(child, snapshot)) return null;
 
+  // A successful child idle does not advance sidebar latestAttentionAt.
+  // Completion is the server event's timestamp, never updatedAt (renames and
+  // mark-read also change that). Failures still carry sidebar attention.
+  const completedAt = snapshot.childCompletions[child.id];
+  const attentionAt = failure
+    ? Math.max(child.latestAttentionAt, completedAt ?? 0)
+    : completedAt;
+  if (attentionAt === undefined || attentionAt === null) return null;
+  base.attentionAt = attentionAt;
   const seenAt = Math.max(
     child.lastReadAt ?? 0,
     owner.lastReadAt ?? 0,
     snapshot.verifications[owner.id]?.verifiedAt ?? 0,
   );
-  if (child.latestAttentionAt <= seenAt) return null;
+  if (attentionAt <= seenAt) return null;
   if (failure?.kind === "item") {
     return { ...base, state: "failed", reason: failure.need.reason };
   }
   const { inboxStartedAt } = snapshot;
-  if (inboxStartedAt === null || child.latestAttentionAt <= inboxStartedAt) {
+  if (inboxStartedAt === null || attentionAt <= inboxStartedAt) {
     return null;
   }
   return { ...base, state: "reported", reason: "Reported back" };

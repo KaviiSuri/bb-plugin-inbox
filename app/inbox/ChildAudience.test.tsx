@@ -79,15 +79,22 @@ function props(): PluginThreadListProps {
 function renderInbox(
   threads: PluginSidebarThread[],
   payloads: Record<string, Record<string, unknown>> = {},
+  completions?: Record<string, number | null>,
+  activeThreadId: string | null = null,
 ) {
+  const markRead = vi.fn(async () => undefined as never);
   const output = vi.fn(async ({ threadId }: { threadId: string }) => ({
     output: `Report from ${threadId}`,
   }));
+  const listEvents = vi.fn(async ({ threadId }: { threadId: string }) => {
+    const at = completions ? completions[threadId] : threads.find((t) => t.id === threadId)!.latestAttentionAt;
+    return (at == null ? [] : [{ type: "turn/completed", createdAt: at }]) as never;
+  });
   const keysOf = (input: unknown) => (input as { keys: string[] }).keys;
   const statusKeys: string[] = [];
   const none = (input: unknown) =>
     Object.fromEntries(keysOf(input).map((key) => [key, null]));
-  const slot = renderSlot(registration, props(), {
+  const slot = renderSlot(registration, { ...props(), activeThreadId }, {
     sidebarThreads: {
       projects: [makePluginProject({ id: "proj_app", name: "App" })],
       sections: [],
@@ -112,6 +119,8 @@ function renderInbox(
     sdk: {
       threads: {
         output,
+        markRead,
+        events: { list: listEvents },
         interactions: {
           list: async ({ threadId }: { threadId: string }) =>
             (payloads[threadId]
@@ -121,7 +130,7 @@ function renderInbox(
       },
     },
   });
-  return { slot, output, statusKeys };
+  return { slot, output, statusKeys, listEvents, markRead };
 }
 
 afterEach(() => {
@@ -177,6 +186,36 @@ describe("Inbox: child Audience on the opened row", () => {
     ]);
   });
 
+  it("opening report two explicitly marks an already-active parent read, even though navigation stays on the same thread", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const { markRead, slot } = renderInbox([
+      { ...PARENT, lastReadAt: 70 }, // Opened after report one at 60.
+      child("thr_r1", "Research: Stripe", { latestAttentionAt: 1, updatedAt: 101 }),
+    ], {}, { thr_r1: 100 }, "thr_parent");
+    fireEvent.click(await screen.findByRole("button", { name: "Build billing: fyi" }));
+    await screen.findByText("Report from thr_r1");
+    expect(markRead).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(markRead).toHaveBeenCalledWith({ threadId: "thr_parent" });
+    expect(slot.inspection.navigateCalls).toEqual([{ method: "toThread", threadId: "thr_parent" }]);
+  });
+
+  it("reads authoritative completion events for child reports, never treating a newer sidebar updatedAt as a finish", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const { listEvents } = renderInbox([
+      PARENT,
+      child("thr_r1", "Research: Stripe", { latestAttentionAt: 1, updatedAt: 150 }),
+      child("thr_r2", "Renamed old research", { latestAttentionAt: 1, updatedAt: 200 }),
+    ], {}, { thr_r1: 100, thr_r2: 1 });
+    fireEvent.click(await screen.findByRole("button", { name: "Build billing: fyi" }));
+    await screen.findByText("Report from thr_r1");
+    expect(screen.queryByRole("button", { name: "Renamed old research: reported" })).toBeNull();
+    expect(listEvents).toHaveBeenCalledWith(expect.objectContaining({
+      threadId: "thr_r1", types: ["turn/completed"], order: "desc", limit: "1",
+    }));
+    expect(listEvents).not.toHaveBeenCalledWith(expect.objectContaining({ threadId: "thr_parent" }));
+  });
+
   it("reads evidence for the parent's environment, never for a folded child's own", async () => {
     setPreferencesMirrorStorageForTest(null);
     const env = (id: string) => ({
@@ -200,7 +239,7 @@ describe("Inbox: child Audience on the opened row", () => {
 
   it("asks to approve on the parent once it stopped, with Open helper going to the waiting child", async () => {
     setPreferencesMirrorStorageForTest(null);
-    const { slot } = renderInbox(
+    const { slot, markRead } = renderInbox(
       [PARENT, child("thr_perm", "Run migrations", { hasPendingInteraction: true })],
       { thr_perm: PERMISSION_PAYLOAD },
     );
@@ -216,5 +255,6 @@ describe("Inbox: child Audience on the opened row", () => {
     expect(slot.inspection.navigateCalls).toEqual([
       { method: "toThread", threadId: "thr_perm" },
     ]);
+    expect(markRead).not.toHaveBeenCalled();
   });
 });

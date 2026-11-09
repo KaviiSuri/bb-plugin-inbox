@@ -24,6 +24,9 @@ export interface InboxSnapshot {
   threads: readonly PluginSidebarThread[];
   /** For threads with `hasPendingInteraction`, what they wait on. */
   interactions: Readonly<Record<string, PendingInteractionSummary>>;
+  /** Latest server turn/completed event per child; null while unknown.
+   * Sidebar latestAttentionAt does not advance on ordinary child idle. */
+  childCompletions: Readonly<Record<string, number | null>>;
   runtime: RuntimeTracking;
   /** Per environment id, once loaded: its diff and pull request. */
   evidence: Readonly<Record<string, EnvironmentEvidence>>;

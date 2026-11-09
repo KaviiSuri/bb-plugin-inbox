@@ -29,6 +29,7 @@ import {
   type RuntimeTracking,
 } from "./model/index.js";
 import { useInboxStart, useSignOffs, type SignOffs } from "./useSignOffs.js";
+import { useChildCompletions } from "./useChildCompletions.js";
 
 const NO_TRACKING: RuntimeTracking = {
   running: {},
@@ -45,6 +46,7 @@ export interface InboxViewState {
 export function useInboxView(): InboxViewState {
   const { status, threads } = experimental_useSidebarThreads();
   const interactions = usePendingInteractions(threads);
+  const childCompletions = useChildCompletions(threads);
   const visible = useMemo(
     () => threads.filter((t) => !t.isHidden && !t.isArchived),
     [threads],
@@ -65,6 +67,7 @@ export function useInboxView(): InboxViewState {
     () => ({
       threads,
       interactions,
+      childCompletions,
       runtime,
       evidence,
       verifications: signOffs.verifications,
@@ -74,7 +77,7 @@ export function useInboxView(): InboxViewState {
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, runtime, evidence, signOffs, inboxStartedAt, tick],
+    [threads, interactions, childCompletions, runtime, evidence, signOffs, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
