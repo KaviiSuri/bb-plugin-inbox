@@ -87,9 +87,14 @@ export function scopeChanges(
     const text = contents[old.path];
     if (old.content === undefined || text === undefined) return null;
     if (old.content === text) {
-      // Equal text can still be an executable-bit change.
-      if (!file || old.revision.split(":")[2] === file.revision.split(":")[2]) continue;
-      changed.push({ path: old.path, revision: file.revision, additions: 0, deletions: 0 });
+      // Absence from a HEAD-based diff means the path matches HEAD, not
+      // necessarily the verified state. Text cannot distinguish an empty
+      // file from a deletion, nor a reverted chmod. Without HEAD metadata
+      // captured at sign-off, admit we cannot scope it exactly.
+      const mode = file?.revision.split(":")[2] ?? old.headMode;
+      if (mode === undefined) return null;
+      if (old.revision.split(":")[2] === mode) continue;
+      changed.push({ path: old.path, revision: file?.revision ?? "", additions: 0, deletions: 0 });
       continue;
     }
     const parts = diffLines(old.content, text, { timeout: 50, maxEditLength: 10_000 });
@@ -190,9 +195,9 @@ export function comingBack(
   const scope = scopedChangesFor(thread, verification, snapshot);
   if (scope === "loading") return { kind: "none" };
   if (scope === "unscoped") {
-    if (!hasEvidence(evidence)) return null;
+    if (!hasEvidence(evidence) && !verification.diffBase?.files.length) return null;
     const reason = pullRequest?.checks.state === "failing"
-      ? `New work; ${failingChecks(pullRequest)}`
+      ? `New work; couldn't tell what changed since you verified; ${failingChecks(pullRequest)}`
       : "New work; couldn't tell what changed since you verified";
     return back(verification, reason, evidence, false);
   }

@@ -87,7 +87,7 @@ export function useScopedChanges(
           signal: controller.signal,
         })
         .then(async (result): Promise<ScopedChanges> => {
-          if (result.outcome !== "available" || !("files" in result) || result.mergeBaseRef !== target.sha) {
+          if (result.outcome !== "available" || !("files" in result) || result.mergeBaseRef !== target.sha || result.truncated) {
             // Rewritten/diverged history: a merge-base comparison is not a
             // comparison with the verified head. Don't label it as scoped.
             return { ...stamp, outcome: "unavailable" };

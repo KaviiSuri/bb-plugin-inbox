@@ -434,7 +434,7 @@ describe("Inbox: coming back", () => {
             headSha: "aaaa111",
             mergeBaseRef: "base999",
             files: [
-              { path: "src/a.ts", revision: "100644:1111:100644:a0a0", content: "a\n" },
+              { path: "src/a.ts", revision: "100644:1111:100644:a0a0", content: "a\n", headMode: "100644" },
               { path: "src/b.ts", revision: "100644:2222:100644:b0b0" },
             ],
           },
@@ -463,6 +463,7 @@ describe("Inbox: coming back", () => {
     return args.outputSchema.parse({
       outcome: "available",
       mergeBaseRef: "aaaa111",
+      truncated: false,
       files: [
         // Unchanged since the Verification: left out.
         { path: "src/b.ts", revision: "100644:9999:100644:b0b0", additions: 9, deletions: 9 },

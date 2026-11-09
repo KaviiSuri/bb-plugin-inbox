@@ -91,7 +91,7 @@ describe("verify", () => {
       diffBase: {
         headSha: "abc123",
         mergeBaseRef: "base999",
-        files: [{ path: "a.ts", revision: REVISION }],
+        files: [{ path: "a.ts", revision: REVISION, headMode: "100644" }],
       },
       prChecksState: "failing",
     };
@@ -126,6 +126,21 @@ describe("verify", () => {
     await harness.behavior.callRpc("verify", { threadId: "thr_1", client: "Mac" });
     await expect(harness.behavior.callRpc("verifications", { keys: ["thr_1"] }))
       .resolves.toMatchObject({ thr_1: { diffBase: { files: [{ content: "one\ntwo\nthree\n" }] } } });
+  });
+
+  it("captures the HEAD mode from uncommitted files, not the old mode against the default branch", async () => {
+    const { harness, callRpc, work } = await setup();
+    const ordinary = bundledPlugins(work);
+    callRpc.mockImplementation(async (args) => {
+      if (args.method === "files" && (args.input as { target: { type: string } }).target.type === "uncommitted") {
+        return { outcome: "available", truncated: false, mergeBaseRef: null, files: [
+          { path: "a.ts", revision: "100755:cccc:100644:bbbb" },
+        ] };
+      }
+      return ordinary(args);
+    });
+    await expect(harness.behavior.callRpc("verify", { threadId: "thr_1", client: "Mac" }))
+      .resolves.toMatchObject({ diffBase: { files: [{ revision: REVISION, headMode: "100755" }] } });
   });
 
   it("refreshes the thread's reads in every client", async () => {
@@ -165,7 +180,7 @@ describe("verify", () => {
         diffBase: {
           headSha: "def456",
           mergeBaseRef: "base999",
-          files: [{ path: "a.ts", revision: "100644:bbbb:100644:cccc" }],
+          files: [{ path: "a.ts", revision: "100644:bbbb:100644:cccc", headMode: "100644" }],
         },
         prChecksState: "passing",
       },

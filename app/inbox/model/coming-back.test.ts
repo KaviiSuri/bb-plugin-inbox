@@ -27,8 +27,8 @@ const BASE: DiffBase = {
   headSha: "aaaa111",
   mergeBaseRef: "base999",
   files: [
-    { path: "a.ts", revision: "100644:1111:100644:a0a0", content: "one\ntwo\n" },
-    { path: "b.ts", revision: "100644:2222:100644:b0b0", content: "b\n" },
+    { path: "a.ts", revision: "100644:1111:100644:a0a0", content: "one\ntwo\n", headMode: "100644" },
+    { path: "b.ts", revision: "100644:2222:100644:b0b0", content: "b\n", headMode: "100644" },
   ],
 };
 
@@ -199,6 +199,16 @@ describe("deriveInbox: coming back (ADR 0003)", () => {
     ]);
   });
 
+  it("keeps the unscoped label visible alongside failing PR checks when the diff base is null", () => {
+    const entry = view({
+      evidence: { env_a: failing(1) },
+      verifications: { thr_v: verification(100, { diffBase: null, prChecksState: "passing" }) },
+    }).newForYou[0]!;
+    expect(entry.reason).toContain("couldn't tell what changed since you verified");
+    expect(entry.reason).toContain("PR #12: 1 of 7 checks failing");
+    expect(entry.comingBack?.scoped).toBe(false);
+  });
+
   it("falls back to all of its changes when reading the scoped changes failed", () => {
     const failed = view({
       scoped: { thr_v: { verifiedAt: 100, attentionAt: 200, outcome: "unavailable" } },
@@ -329,6 +339,30 @@ describe("scopeChanges", () => {
       diff: { fileCount: 2, insertions: 11, deletions: 1 },
       paths: ["c.ts", "a.ts"],
     });
+  });
+
+  it("counts a reverted executable bit even when the file disappears from the HEAD diff", () => {
+    expect(scopeChanges([], {
+      ...BASE,
+      files: [{ path: "run.sh", revision: "100644:aaaa:100755:aaaa", content: "echo ok\n", headMode: "100644" }],
+    }, { "run.sh": "echo ok\n" })).toEqual({
+      diff: { fileCount: 1, insertions: 0, deletions: 0 }, paths: ["run.sh"],
+    });
+  });
+
+  it("counts restoring a verified empty-file deletion even when the HEAD diff is empty", () => {
+    expect(scopeChanges([], {
+      ...BASE,
+      files: [{ path: "empty", revision: "100644:aaaa:000000:0000", content: "", headMode: "100644" }],
+    }, { empty: "" })).toEqual({
+      diff: { fileCount: 1, insertions: 0, deletions: 0 }, paths: ["empty"],
+    });
+  });
+
+  it("admits scope is unavailable when equal text has no reliable HEAD mode or presence metadata", () => {
+    for (const revision of ["100644:aaaa:100755:aaaa", "100644:aaaa:000000:0000"]) {
+      expect(scopeChanges([], { ...BASE, files: [{ path: "x", revision, content: "" }] }, { x: "" })).toBeNull();
+    }
   });
 
   it("counts only the extra line after signing off an uncommitted addition, not the whole file", () => {

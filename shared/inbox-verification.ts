@@ -18,6 +18,8 @@ export const diffBaseSchema = z
         revision: z.string(),
         /** Text at sign-off, including uncommitted work; absent on older bases. */
         content: z.string().optional(),
+        /** Mode of this path at headSha, not at the branch's merge base. */
+        headMode: z.string().regex(/^[0-7]{6}$/).optional(),
       }).strict(),
     ),
   })

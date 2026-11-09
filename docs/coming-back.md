@@ -8,6 +8,14 @@ and before the ordinary Verify/FYI rules. The pure `deriveInbox` tests in
 ## What the diff base covers
 
 The sign-off still records the head SHA, merge base and per-file revisions.
+It also records each path's HEAD mode from `bb--git files` with target
+`uncommitted`, whose old side is HEAD. The old mode from the branch diff
+is not sufficient because that old side is the merge base, not HEAD.
+An absent path in a complete later HEAD diff has the stored HEAD mode.
+This distinguishes reverted executable bits and restored empty files from
+unchanged text. Older snapshots missing that metadata fall back rather
+than declaring equal text unchanged.
+
 It also captures text for up to 100 changed files, up to 100,000 characters
 per file, through `bb--git fileSide`. This matters for uncommitted work:
 verifying a three-line new file and then appending one line must show +1,
@@ -31,9 +39,13 @@ write and prevent any future return until reload.
 
 A null diff base, old base without the needed text, oversized or binary file,
 unreadable git data, rewritten history, or a text comparison exceeding its
-budget cannot produce an exact scope. The opened row says it couldn't tell
-what changed and shows all current evidence instead. It does not pretend the
-whole diff is new. If there is no current evidence, it becomes FYI.
+budget cannot produce an exact scope. Truncated file lists also cannot
+establish that a path is absent. The opened row says it couldn't tell what
+changed and shows all current evidence instead. It preserves that label even
+when checks fail. It does not pretend the whole diff is new. If no prior files
+or current evidence are available, it becomes FYI. If prior file state is
+ambiguous, it stays Verify even with no HEAD diff, because empty-file and
+mode changes can be invisible in the text.
 
 With no new work, failing PR checks bring the item back only if a non-null
 checks state at sign-off wasn't `failing`. Null means there is no known prior
@@ -47,6 +59,9 @@ Checks that fail alongside new changes still appear in the reason line.
   already-failing sign-off, re-verifying, missing/stale reads and fallbacks.
 - `useScopedChanges.test.ts`: selecting the latest base, skipping running,
   waiting, covered and baseless threads.
+- `return-metadata.test.tsx`: realistic empty `files` and equal-text `fileSide`
+  answers for reverted chmods and restored empty files, both with captured
+  HEAD metadata and older snapshots that require a labelled fallback.
 - `InboxTabs.test.tsx`: scoped diffstat, folded Already verified files,
   Verify action, and a fresh sign-off read after acknowledgement.
 - `server/verification/verification.test.ts`: text survives the RPC/storage
@@ -83,6 +98,9 @@ before and after that session.
 - `node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk-app.d.ts`,
   `ExperimentalRpcKeyedQueryState.refetchKeys` and the mutation acknowledgement
   contract, around lines 23954–24000 in SDK 0.6.133.
+- `files` target `uncommitted` explicitly uses `git diff HEAD`, while target
+  `all` uses the resolved merge base:
+  https://github.com/get-bb/bb/blob/55135d1e5045d6c5d3c24f5a4d5556ed3e11cb00/plugins/git/host/workspace-reads.ts#L2236-L2257
 - bb's child-thread attention behavior is intentional upstream:
   https://github.com/get-bb/bb/blob/55135d1e5045d6c5d3c24f5a4d5556ed3e11cb00/packages/db/src/data/threads.ts#L699-L708
   does not advance attention when an ordinary child becomes idle. The live

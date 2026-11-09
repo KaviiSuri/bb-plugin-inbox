@@ -136,6 +136,7 @@ export const gitFilesSchema = z.union([
   z.object({
     outcome: z.literal("available"),
     mergeBaseRef: z.string().nullable(),
+    truncated: z.boolean(),
     files: z.array(
       z.object({
         path: z.string(),
