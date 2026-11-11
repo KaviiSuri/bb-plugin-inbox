@@ -96,7 +96,9 @@ snapshots. Keep that override when regenerating the manifest.
 
 Inbox code lives in `app/inbox/`, `server/verification/`,
 `shared/inbox-preferences.ts`, `shared/inbox-verification.ts`,
-`server/classifier/`, `app/classifier/` and `skills/inbox-classifier/`, and
+`server/classifier/`, `app/classifier/`, `shared/inbox-turn-end.ts` (the
+classifier's rpc contract, moved out of `server/classifier/` in #15 so the app
+can hold it for a keyed query) and `skills/inbox-classifier/`, and
 touches upstream files only at the seams the spec names (root component,
 preference definitions, server). Each such change:
 

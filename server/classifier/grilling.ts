@@ -1,23 +1,25 @@
 // Did a thread use the grilling skill? ADR 0008 makes that a `human`-audience
 // signal. Read from the thread's raw events (`bb.sdk.threads.events.list`).
 //
-// Signals, by where they were confirmed:
-// - pi's read tool: an `item/started` whose item is
-//   `{ type: "fileRead", path: ".../grilling/SKILL.md" }` (seen on a live pi
-//   thread, thr_fry4mv3eju seq 207).
-// - a shell read of the skill file: a `commandExecution` item whose `command`
-//   names `.../grilling/SKILL.md` (pi reads skills this way too, e.g.
-//   thr_s7ij7ggswg seq 30 for other skills).
-// - inferred, not seen live: a `toolCall` to a tool named like "Skill" (Claude
-//   Code's skill tool) with a grill skill in its arguments, and a user turn
-//   that invokes `/grilling` (a `command` mention with `source: "skill"`, or
-//   text starting with the slash command).
+// A skill counts once its load completed: an `item/completed` whose item's
+// `status` is "completed". `item/started` also fires for a load that then
+// fails, as Claude Code's does for a skill it doesn't have. Signals, each seen
+// live through `bb thread log --json` (2026-11-11 unless noted):
+// - pi's read tool: `{ type: "fileRead", path: ".../grilling/SKILL.md" }`
+//   (thr_fry4mv3eju seq 209, 2026-11-09).
+// - Codex's shell read: `{ type: "commandExecution", command: "/bin/zsh -lc
+//   'cat .../grilling/SKILL.md'" }` (thr_32kzj24hjb seq 26).
+// - Claude Code's skill tool: `{ type: "toolCall", tool: "Skill",
+//   arguments: { skill: "grilling" } }` (thr_jytmedct3z seq 25-26; that load
+//   failed, `status: "failed"`, so it doesn't count).
+// - inferred, not seen live: a user turn that invokes `/grilling` (a `command`
+//   mention with `source: "skill"`, or text starting with the slash command).
 //
 // The skill family is matched by name: `grilling`, `grill-me`,
 // `grill-with-docs`.
 
 export const GRILLING_EVENT_TYPES = [
-  "item/started",
+  "item/completed",
   "client/turn/requested",
 ] as const;
 
@@ -33,7 +35,7 @@ interface EventLike {
 export function eventUsesGrilling(event: EventLike): boolean {
   const data = asRecord(event.data);
   if (data === null) return false;
-  if (event.type === "item/started") return itemUsesGrilling(asRecord(data.item));
+  if (event.type === "item/completed") return itemUsesGrilling(asRecord(data.item));
   if (event.type === "client/turn/requested") {
     return Array.isArray(data.input) && data.input.some(inputInvokesGrilling);
   }
@@ -41,7 +43,7 @@ export function eventUsesGrilling(event: EventLike): boolean {
 }
 
 function itemUsesGrilling(item: Record<string, unknown> | null): boolean {
-  if (item === null) return false;
+  if (item === null || item.status !== "completed") return false;
   switch (item.type) {
     case "fileRead":
       return typeof item.path === "string" && GRILL_SKILL_FILE.test(item.path);

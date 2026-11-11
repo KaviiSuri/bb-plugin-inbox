@@ -2,13 +2,15 @@
 // does, never declared at spawn. A top-level thread answers to the human. A
 // child answers to the human, and keeps its own item naming its parent
 // (ADR 0002), while it waits on a question form, a plugin's form or a plan
-// review. Every other child answers to its parent: it never has a row of its
-// own, and its news folds into the item of its owner, the nearest ancestor
-// that answers to the human. A child waiting on a permission stays with its
+// review, and when the classifier says it ended its turn with a question for
+// the human or it has used the grilling skill. Every other child answers to
+// its parent: it never has a row of its own, and its news folds into the item
+// of its owner, the nearest ancestor that answers to the human. A child waiting on a permission stays with its
 // parent agent until the parent stops; then the owner's item asks to approve.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { broken, stuck } from "./broken.js";
 import { isRunning, settling } from "./running.js";
+import { needsTurnEnd, turnEndOf, usedGrilling } from "./turn-end.js";
 import {
   TIER_ORDER,
   type FoldedChild,
@@ -22,15 +24,16 @@ type ThreadsById = ReadonlyMap<string, PluginSidebarThread>;
 
 /**
  * Why a thread with a parent answers to the human, as the opened row says
- * it; null when it answers to its parent. The classifier's signals (a turn
- * ending in a question, the grilling skill) arrive with #15.
+ * it; null when it answers to its parent. A pending interaction decides on
+ * its own: a permission stays with the parent whatever the classifier said
+ * about an earlier turn. Otherwise the classifier's signals (ADR 0008).
  */
 export function humanAudienceReason(
   thread: PluginSidebarThread,
-  { interactions }: InboxSnapshot,
+  snapshot: InboxSnapshot,
 ): string | null {
-  if (!thread.hasPendingInteraction) return null;
-  const interaction = interactions[thread.id];
+  if (!thread.hasPendingInteraction) return classifiedReason(thread, snapshot);
+  const interaction = snapshot.interactions[thread.id];
   switch (interaction?.kind) {
     case "user_question":
       return "Its own item: it asks you through a question form";
@@ -43,6 +46,21 @@ export function humanAudienceReason(
     default:
       return null;
   }
+}
+
+/** The classifier's reason a finished child answers to the human. */
+function classifiedReason(
+  thread: PluginSidebarThread,
+  snapshot: InboxSnapshot,
+): string | null {
+  if (isRunning(thread)) return null;
+  if (usedGrilling(thread, snapshot)) {
+    return "Its own item: it grills you with the grilling skill";
+  }
+  if (needsTurnEnd(thread, snapshot) && turnEndOf(thread, snapshot) === "question") {
+    return "Its own item: it ended its turn with a question for you";
+  }
+  return null;
 }
 
 /** The visible parent, or undefined for a top-level thread. */
@@ -109,6 +127,12 @@ function newsOf(
   if (!stuckOutcome && isRunning(child)) return null;
   const failure = stuckOutcome ?? broken(child);
   if (!failure && settling(child, snapshot)) return null;
+  // Its verdict could still give it its own item: hold the report back
+  // rather than fold it and then move it.
+  if (!failure && needsTurnEnd(child, snapshot)) {
+    const state = turnEndOf(child, snapshot);
+    if (state === "loading" || state === "pending") return null;
+  }
 
   // A successful child idle does not advance sidebar latestAttentionAt.
   // Completion is the server event's timestamp, never updatedAt (renames and

@@ -1,5 +1,12 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import {
+  turnEndSchema,
+  turnEndTag,
+  type TurnEnd,
+} from "../../shared/inbox-turn-end.js";
+
+export { turnEndSchema, type TurnEnd };
 
 // Turn-end records live in the plugin's KV, one row per thread, rather than
 // the plugin database: `bb.storage.migrate` numbers migrations by index, so a
@@ -9,27 +16,6 @@ import { z } from "zod";
 const KV_PREFIX = "turnEnd:";
 
 export const TURN_ENDS_CHANNEL = "turn-ends";
-
-export const turnEndSchema = z
-  .object({
-    verdict: z.enum(["question", "report"]),
-    // Who decided: the helper thread's model, or the heuristic.
-    source: z.enum(["model", "heuristic"]),
-    // Why the heuristic decided, when it did: no provider set, nothing to
-    // read, a turn end found by the startup reconcile past its model budget,
-    // or the helper thread failed, timed out or gave no clear answer.
-    fallback: z
-      .enum(["no-provider", "no-text", "startup", "failed", "timeout", "unparseable"])
-      .nullable(),
-    // Sticky: once a thread has used the grilling skill it stays true.
-    grilling: z.boolean(),
-    // The thread's `latestAttentionAt` for the turn end this verdict covers.
-    turnKey: z.number(),
-    classifiedAt: z.number(),
-  })
-  .strict();
-
-export type TurnEnd = z.infer<typeof turnEndSchema>;
 
 const storedTurnEndSchema = turnEndSchema
   .extend({
@@ -53,6 +39,7 @@ export function createTurnEndStore(bb: BbPluginApi) {
 
   async function put(threadId: string, record: StoredTurnEnd): Promise<void> {
     await bb.storage.kv.set(`${KV_PREFIX}${threadId}`, record);
+    bb.rpc.experimental_invalidate([turnEndTag(threadId)]);
     bb.realtime.publish(TURN_ENDS_CHANNEL, { threadIds: [threadId] });
   }
 
