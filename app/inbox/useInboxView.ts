@@ -64,7 +64,11 @@ export function useInboxView(): InboxViewState {
   );
   const signOffs = useSignOffs(useMemo(() => visible.map((t) => t.id), [visible]));
   const inboxStartedAt = useInboxStart();
-  const turnEnds = useTurnEnds(threads, childCompletions, inboxStartedAt);
+  const { turnEnds, waitingSince: turnEndsWaitingSince } = useTurnEnds(
+    threads,
+    childCompletions,
+    inboxStartedAt,
+  );
   const evidence = useEvidence(visible, inboxStartedAt, turnEnds);
   const scoped = useScopedChanges(visible, signOffs.verifications);
   const [tick, setTick] = useState(0);
@@ -82,6 +86,7 @@ export function useInboxView(): InboxViewState {
       interactions,
       childCompletions,
       turnEnds,
+      turnEndsWaitingSince,
       runtime,
       evidence,
       verifications: signOffs.verifications,
@@ -92,7 +97,7 @@ export function useInboxView(): InboxViewState {
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, childCompletions, turnEnds, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
+    [threads, interactions, childCompletions, turnEnds, turnEndsWaitingSince, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 

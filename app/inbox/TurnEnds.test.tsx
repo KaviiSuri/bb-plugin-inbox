@@ -108,6 +108,11 @@ interface Options {
   /** Latest turn/completed per child. */
   completions?: Record<string, number>;
   turnEndsFails?: boolean;
+  /** The read never answers, or answers without these threads' rows. */
+  turnEndsNever?: boolean;
+  turnEndsOmit?: string[];
+  /** Completion reads answer after this long (fake timers). */
+  completionDelayMs?: number;
   activeTab?: "inbox" | "threads";
 }
 
@@ -137,8 +142,11 @@ function renderInbox(threads: PluginSidebarThread[], options: Options = {}) {
       turnEnds: (input: unknown) => {
         turnEndKeys.push(keysOf(input));
         if (options.turnEndsFails) throw new Error("classifier offline");
+        if (options.turnEndsNever) return new Promise(() => {});
         return Object.fromEntries(
-          keysOf(input).map((key) => [key, verdicts[key] ?? null]),
+          keysOf(input)
+            .filter((key) => !options.turnEndsOmit?.includes(key))
+            .map((key) => [key, verdicts[key] ?? null]),
         );
       },
       status: (input: unknown) => (
@@ -158,6 +166,9 @@ function renderInbox(threads: PluginSidebarThread[], options: Options = {}) {
         markRead: async () => undefined as never,
         events: {
           list: async ({ threadId }: { threadId: string }) => {
+            if (options.completionDelayMs) {
+              await new Promise((resolve) => setTimeout(resolve, options.completionDelayMs));
+            }
             const at = options.completions?.[threadId];
             return (at === undefined ? [] : [{ type: "turn/completed", createdAt: at }]) as never;
           },
@@ -213,6 +224,41 @@ describe("Inbox: turn-end verdicts through the keyed rpc (#15)", () => {
   it("never hides finished work when the verdicts can't be read", async () => {
     setPreferencesMirrorStorageForTest(null);
     renderInbox([top({ latestAttentionAt: LONG_AGO })], { turnEndsFails: true });
+    await screen.findByRole("button", { name: "Pick a database: fyi" });
+  });
+
+  it.each([["never answers", { turnEndsNever: true }]] as const)(
+    "shows finished work once its grace runs out when the verdict read %s, and not before",
+    async (_name, read) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        setPreferencesMirrorStorageForTest(null);
+        // A turn long finished, as on a reload: the read gets its own grace,
+        // counted from when the wait began even though the list re-renders
+        // mid-wait (a helper's completion read answers at 10s).
+        const helper = child("thr_helper_child", "Research: Stripe", {
+          parentThreadId: "thr_top",
+        });
+        renderInbox([top({ latestAttentionAt: LONG_AGO }), helper], {
+          ...read,
+          completions: { thr_helper_child: LONG_AGO },
+          completionDelayMs: 10_000,
+        });
+        await vi.advanceTimersByTimeAsync(15_000);
+        expect(screen.queryByRole("button", { name: /^Pick a database: / })).toBeNull();
+        await vi.advanceTimersByTimeAsync(20_000);
+        await screen.findByRole("button", { name: "Pick a database: fyi" });
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("shows finished work when the verdict read omits its row, which the host fails as a read error", async () => {
+    // @get-bb/plugin-sdk 0.6.133 dist/internal/rpc-query-host.js:
+    // `Keyed read omitted key ${key}` is thrown for a missing row.
+    setPreferencesMirrorStorageForTest(null);
+    renderInbox([top({ latestAttentionAt: LONG_AGO })], { turnEndsOmit: ["thr_top"] });
     await screen.findByRole("button", { name: "Pick a database: fyi" });
   });
 

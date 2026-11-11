@@ -49,6 +49,7 @@ export function snapshot(overrides: Partial<InboxSnapshot> = {}): InboxSnapshot 
         }),
       ]),
     ),
+    turnEndsWaitingSince: {},
     runtime: { running: {}, stoppedAt: {}, waitingForHostSince: {} },
     evidence: {},
     verifications: {},

@@ -9,10 +9,11 @@ import { isRunning } from "./running.js";
 import { item, type InboxSnapshot, type Outcome } from "./types.js";
 
 /**
- * How long a finished turn waits in the Running count for its verdict. The
- * heuristic answers in milliseconds; a helper thread on the user's model
+ * How long a finished turn waits for its verdict: in the Running count while
+ * the server has none yet, held back while the read itself hasn't answered.
+ * The heuristic answers in milliseconds; a helper thread on the user's model
  * takes longer. After this the turn counts as a report, so an unanswered
- * read never hides the thread.
+ * read, or one that never resolves, never hides the thread.
  */
 export const CLASSIFY_GRACE_MS = 30_000;
 
@@ -20,7 +21,7 @@ export const CLASSIFY_GRACE_MS = 30_000;
 export type TurnEndState =
   | "question"
   | "report"
-  /** The verdicts or the child's turn end are still being read. */
+  /** The verdict read hasn't answered yet, within the grace. */
   | "loading"
   /** No verdict for this turn yet, within the grace. */
   | "pending";
@@ -67,16 +68,37 @@ export function needsTurnEnd(
   return endedAt !== null && inboxStartedAt !== null && endedAt > inboxStartedAt;
 }
 
+/**
+ * When the wait for this turn's verdict ends: the grace after the turn
+ * ended, or after the client started waiting on the read if that was later
+ * (a reload long after the turn still gives the read its grace). Null when
+ * there's nothing to wait for: the verdict covers this turn, or the turn
+ * end itself is unknown.
+ */
+function waitEndsAt(
+  thread: PluginSidebarThread,
+  snapshot: InboxSnapshot,
+): number | null {
+  const endedAt = turnEndedAt(thread, snapshot);
+  if (endedAt === null) return null;
+  const verdict = snapshot.turnEnds[thread.id];
+  if (verdict && covers(verdict, thread, endedAt)) return null;
+  const readSince =
+    verdict === undefined ? (snapshot.turnEndsWaitingSince[thread.id] ?? endedAt) : endedAt;
+  return Math.max(endedAt, readSince) + CLASSIFY_GRACE_MS;
+}
+
 /** How the thread's latest turn ended, as far as the Inbox knows. */
 export function turnEndOf(
   thread: PluginSidebarThread,
   snapshot: InboxSnapshot,
 ): TurnEndState {
   const endedAt = turnEndedAt(thread, snapshot);
+  if (endedAt === null) return "loading";
   const verdict = snapshot.turnEnds[thread.id];
-  if (endedAt === null || verdict === undefined) return "loading";
-  if (verdict !== null && covers(verdict, thread, endedAt)) return verdict.verdict;
-  return snapshot.now - endedAt < CLASSIFY_GRACE_MS ? "pending" : "report";
+  if (verdict && covers(verdict, thread, endedAt)) return verdict.verdict;
+  if (snapshot.now >= waitEndsAt(thread, snapshot)!) return "report";
+  return verdict === undefined ? "loading" : "pending";
 }
 
 /** The thread has used the grilling skill; sticky across its turns. */
@@ -118,15 +140,17 @@ export function asks(
   }
 }
 
-/** When a pending verdict's grace ends and the turn counts as a report. */
+/** When a wait for a verdict runs out and the turn counts as a report. */
 export function classifyDeadlines(snapshot: InboxSnapshot): number[] {
   const deadlines: number[] = [];
   for (const thread of snapshot.threads) {
     if (thread.isHidden || thread.isArchived) continue;
     if (isRunning(thread) || thread.hasPendingInteraction) continue;
     if (!needsTurnEnd(thread, snapshot)) continue;
-    if (turnEndOf(thread, snapshot) !== "pending") continue;
-    deadlines.push(turnEndedAt(thread, snapshot)! + CLASSIFY_GRACE_MS);
+    const state = turnEndOf(thread, snapshot);
+    if (state !== "pending" && state !== "loading") continue;
+    const endsAt = waitEndsAt(thread, snapshot);
+    if (endsAt !== null) deadlines.push(endsAt);
   }
   return deadlines;
 }

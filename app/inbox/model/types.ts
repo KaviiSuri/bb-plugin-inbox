@@ -34,6 +34,11 @@ export interface InboxSnapshot {
    * null when the server has none, missing while it loads.
    */
   turnEnds: Readonly<Record<string, TurnEnd | null>>;
+  /**
+   * When this client started waiting on each verdict read that hasn't
+   * answered (client clock); bounds that wait like a missing verdict's.
+   */
+  turnEndsWaitingSince: Readonly<Record<string, number>>;
   runtime: RuntimeTracking;
   /** Per environment id, once loaded: its diff and pull request. */
   evidence: Readonly<Record<string, EnvironmentEvidence>>;

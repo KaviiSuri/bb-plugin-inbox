@@ -41,8 +41,13 @@ with `experimental_useRpcKeyedQuery`.
 
 While no verdict for the current turn exists, a turn that ended under 30s ago
 (`CLASSIFY_GRACE_MS`) waits in the Running count. After that it counts as a
-report, so a missing or failed read never hides work. While the first read
-loads, finished turns hold back (no item) rather than flash as FYI. Turns
+report, so a missing or failed read never hides work. While a read hasn't
+answered, finished turns hold back (no item) rather than flash as FYI, for
+the same 30s counted from when this client began waiting (so a reload long
+after the turn still gets its grace), then the work shows. A read that never
+resolves is bounded this way; a row the server omits fails the whole read in
+the host (`Keyed read omitted key`, SDK 0.6.133
+`dist/internal/rpc-query-host.js`) and counts as no verdict. Turns
 that ended before the Inbox started are never asked about (ADR 0010).
 
 ## Live evidence (2026-11-11)

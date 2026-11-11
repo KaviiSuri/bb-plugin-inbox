@@ -164,6 +164,39 @@ describe("deriveInbox: a turn that ends with a plain-text question (#15)", () =>
     expect(rows(late)).toMatchObject([{ threadId: "thr_top", tier: "fyi" }]);
   });
 
+  it("bounds a verdict read that never answers: held back within the grace, then the work shows", () => {
+    const recent = finished({ latestAttentionAt: NOW - 10_000 });
+    const waiting = snapshot({ threads: [recent], turnEnds: {} });
+    expect(rows(deriveInbox(waiting))).toEqual([]);
+    expect(nextChangeAt(waiting)).toBe(NOW + 20_000);
+
+    const old = finished({ latestAttentionAt: NOW - 60_000, environment: environment("env_1") });
+    const view = deriveInbox(
+      snapshot({ threads: [old], turnEnds: {}, evidence: { env_1: DIFF } }),
+    );
+    expect(rows(view)).toMatchObject([{ threadId: "thr_top", tier: "verify" }]);
+  });
+
+  it("gives a read opened long after the turn its own grace, so a reload never flashes FYI", () => {
+    const old = finished({ latestAttentionAt: NOW - 600_000 });
+    const base = {
+      threads: [old],
+      turnEnds: {},
+      turnEndsWaitingSince: { thr_top: NOW - 5_000 },
+    };
+    expect(rows(deriveInbox(snapshot(base)))).toEqual([]);
+    expect(nextChangeAt(snapshot(base))).toBe(NOW - 5_000 + CLASSIFY_GRACE_MS);
+    const late = snapshot({ ...base, now: NOW - 5_000 + CLASSIFY_GRACE_MS });
+    expect(rows(deriveInbox(late))).toMatchObject([{ tier: "fyi" }]);
+    // A valid question that arrives after the wait still wins.
+    const answered = snapshot({
+      ...base,
+      now: NOW + CLASSIFY_GRACE_MS,
+      turnEnds: { thr_top: verdictFor(old, "question") },
+    });
+    expect(rows(deriveInbox(answered))).toMatchObject([{ word: "answer" }]);
+  });
+
   it("treats a failed verdict read (no verdict) on an older turn as a report at once", () => {
     const thread = finished({ latestAttentionAt: NOW - CLASSIFY_GRACE_MS - 1 });
     const view = deriveInbox(snapshot({ threads: [thread], turnEnds: { thr_top: null } }));
