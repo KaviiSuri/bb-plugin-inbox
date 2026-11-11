@@ -48,7 +48,9 @@ after the turn still gets its grace), then the work shows. A read that never
 resolves is bounded this way; a row the server omits fails the whole read in
 the host (`Keyed read omitted key`, SDK 0.6.133
 `dist/internal/rpc-query-host.js`) and counts as no verdict. Turns
-that ended before the Inbox started are never asked about (ADR 0010).
+that ended before the Inbox started are never asked about. The user chose
+this on #15 ("New questions only"), and it is recorded as an amendment to
+ADR 0010. Pending forms, plans and permissions are still exempt.
 
 ## Live evidence (2026-11-11)
 
