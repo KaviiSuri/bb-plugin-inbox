@@ -240,7 +240,7 @@ describe("Inbox: turn-end verdicts through the keyed rpc (#15)", () => {
       },
     });
     fireEvent.click(await screen.findByRole("button", { name: "Name the flag: answer" }));
-    await screen.findByText("Its own item: it ended its turn with a question for you");
+    await screen.findByText("Its own item: it asks you in plain text");
     expect(document.querySelector("[data-inbox-parent]")?.textContent).toBe("FromBuild billing");
   });
 

@@ -277,7 +277,7 @@ describe("deriveInbox: a child the classifier says answers to the human (ADR 000
         word: "answer",
         attentionAt: TURN_ONE,
         parentThreadId: "thr_x9gczbpym2",
-        audienceReason: "Its own item: it ended its turn with a question for you",
+        audienceReason: "Its own item: it asks you in plain text",
       },
     ]);
   });

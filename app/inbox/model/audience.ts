@@ -58,7 +58,7 @@ function classifiedReason(
     return "Its own item: it grills you with the grilling skill";
   }
   if (needsTurnEnd(thread, snapshot) && turnEndOf(thread, snapshot) === "question") {
-    return "Its own item: it ended its turn with a question for you";
+    return "Its own item: it asks you in plain text";
   }
   return null;
 }
