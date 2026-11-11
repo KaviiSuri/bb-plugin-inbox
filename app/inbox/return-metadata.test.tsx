@@ -62,6 +62,7 @@ function renderReturn(title: string, revision: string, content: string, headMode
       setPreference: (value: unknown) => value,
       inboxStart: () => ({ startedAt: 0 }),
       verifications: () => ({ thr_r: verification }), laters: () => ({ thr_r: null }),
+      turnEnds: () => ({ thr_r: null }),
       status: () => ({ env_r: { outcome: "available", workspace: { allChanges: { fileCount: 0, insertions: 0, deletions: 0 } } } }),
       pullRequests: () => ({ env_r: { outcome: "absent" } }),
     },

@@ -1,42 +1,25 @@
 import { createHash } from "node:crypto";
-import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
-import { z } from "zod";
+import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { turnEndRpcContract } from "../../shared/inbox-turn-end.js";
 import { eventUsesGrilling, GRILLING_EVENT_TYPES } from "./grilling.js";
 import { classifyTurnEnd, type TurnEndVerdict } from "./heuristic.js";
 import { createHelperRunner, type HelperOutcome } from "./helper.js";
-import { createSelectionStore, selectionSchema } from "./selection.js";
+import { createSelectionStore } from "./selection.js";
 import {
   createTurnEndStore,
   publicTurnEnd,
-  turnEndSchema,
   type StoredTurnEnd,
   type TurnEnd,
 } from "./store.js";
 
 export { classifyTurnEnd } from "./heuristic.js";
 export { TURN_ENDS_CHANNEL, type TurnEnd } from "./store.js";
+export { turnEndRpcContract };
 
 // The server half of the turn-end classifier (issue #18, ADRs 0008 and 0009):
 // on every `thread.idle`, decide whether the turn ended with a question for
 // the human or a report, note whether the thread has used the grilling skill,
 // and store both per thread for the inbox to read.
-
-export const turnEndRpcContract = defineRpcContract({
-  // Keyed for `experimental_useRpcKeyedQuery`: one row per requested thread,
-  // null when there's no verdict (never classified, or a helper thread).
-  turnEnds: {
-    input: z.object({ keys: z.array(z.string().min(1)).max(500) }).strict(),
-    output: z.record(z.string(), turnEndSchema.nullable()),
-  },
-  getTurnEndClassifier: {
-    input: z.null(),
-    output: z.object({ selection: selectionSchema.nullable() }).strict(),
-  },
-  setTurnEndClassifier: {
-    input: z.object({ selection: selectionSchema.nullable() }).strict(),
-    output: z.object({ selection: selectionSchema.nullable() }).strict(),
-  },
-});
 
 const WATERMARK_KV_KEY = "turnEnd:watermark";
 const DEFAULT_HELPER_TIMEOUT_MS = 90_000;
@@ -58,6 +41,7 @@ interface ThreadFacts {
   visibility: string;
   archivedAt: number | null;
   originPluginId: string | null;
+  parentThreadId: string | null;
   latestAttentionAt: number;
 }
 
@@ -113,6 +97,25 @@ export function registerTurnEndClassifier(
     return { grilling, scannedSeq };
   }
 
+  // The server time of the thread's latest turn end. A child's
+  // `latestAttentionAt` stays put when it goes idle (bb advances it only for
+  // top-level threads), so the Inbox matches a child's verdict to its turn by
+  // this, as #14 dates child reports by it. Null when unread or unreadable.
+  async function latestCompletion(threadId: string): Promise<number | null> {
+    try {
+      const [event] = await bb.sdk.threads.events.list({
+        threadId,
+        types: ["turn/completed"],
+        order: "desc",
+        limit: "1",
+      });
+      return event?.createdAt ?? null;
+    } catch (error) {
+      bb.log.warn(`could not read the turn end of ${threadId}: ${describe(error)}`);
+      return null;
+    }
+  }
+
   async function decide(
     thread: ThreadFacts,
     text: string | null,
@@ -144,10 +147,17 @@ export function registerTurnEndClassifier(
     thread: ThreadFacts,
     text: string | null,
     useModel: boolean,
+    completedAt: number | null,
   ): Promise<void> {
     const previous = await store.get(thread.id);
     // An older turn end arriving late never replaces a newer verdict.
-    if (previous && previous.turnKey > thread.latestAttentionAt) return;
+    if (
+      previous &&
+      (previous.turnKey > thread.latestAttentionAt ||
+        (previous.completedAt ?? 0) > (completedAt ?? Infinity))
+    ) {
+      return;
+    }
     const { grilling, scannedSeq } = await scanGrilling(thread.id, previous);
     const decision = await decide(thread, text, previous, useModel);
     await store.put(thread.id, {
@@ -155,6 +165,7 @@ export function registerTurnEndClassifier(
       grilling,
       scannedSeq,
       turnKey: thread.latestAttentionAt,
+      completedAt,
       classifiedAt: Date.now(),
       textHash: hashText(text),
     });
@@ -162,10 +173,15 @@ export function registerTurnEndClassifier(
 
   // One classification per thread at a time, in arrival order, so a stored
   // record is never read and written by two classifications at once.
-  function classify(thread: ThreadFacts, text: string | null, useModel: boolean) {
+  function classify(
+    thread: ThreadFacts,
+    text: string | null,
+    useModel: boolean,
+    completedAt: number | null,
+  ) {
     const previous = perThread.get(thread.id) ?? Promise.resolve();
     const next = previous
-      .then(() => classifyNow(thread, text, useModel))
+      .then(() => classifyNow(thread, text, useModel, completedAt))
       .catch((error) => {
         bb.log.warn(`could not classify ${thread.id}: ${describe(error)}`);
       });
@@ -192,14 +208,27 @@ export function registerTurnEndClassifier(
       for (const thread of page) {
         if (thread.status !== "idle" || !classifiable(thread)) continue;
         const stored = await store.get(thread.id);
-        if (stored && stored.turnKey >= thread.latestAttentionAt) continue;
+        const isChild = thread.parentThreadId !== null;
+        if (stored && stored.turnKey >= thread.latestAttentionAt && !isChild) {
+          continue;
+        }
+        const completedAt = await latestCompletion(thread.id);
+        // A child's attention never moves on idle, so only a newer turn end
+        // than the stored one says it finished a turn while we were unloaded.
+        if (
+          stored &&
+          isChild &&
+          stored.turnKey >= thread.latestAttentionAt &&
+          (completedAt === null || stored.completedAt === completedAt)
+        ) {
+          continue;
+        }
         const { output } = await bb.sdk.threads.output({ threadId: thread.id });
+        const turnEndAt = isChild ? (completedAt ?? 0) : thread.latestAttentionAt;
         const useModel =
-          modelBudget > 0 &&
-          watermark !== undefined &&
-          thread.latestAttentionAt > watermark;
+          modelBudget > 0 && watermark !== undefined && turnEndAt > watermark;
         if (useModel) modelBudget -= 1;
-        await classify(thread, output, useModel);
+        await classify(thread, output, useModel, completedAt);
       }
       if (page.length < LIST_PAGE) break;
     }
@@ -212,7 +241,10 @@ export function registerTurnEndClassifier(
       return;
     }
     if (!classifiable(thread)) return;
-    await classify(thread, lastAssistantText, true);
+    // Read on arrival, before queueing behind an earlier classification, so
+    // the stamp is this turn's and not a later one's.
+    const completedAt = await latestCompletion(thread.id);
+    await classify(thread, lastAssistantText, true, completedAt);
     await bb.storage.kv.set(WATERMARK_KV_KEY, Date.now());
   });
 

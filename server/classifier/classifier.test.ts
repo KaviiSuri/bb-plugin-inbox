@@ -4,6 +4,7 @@ import {
 } from "@get-bb/plugin-sdk/testing";
 import { describe, expect, it, vi } from "vitest";
 import plugin from "../../server.js";
+import { turnEndRpcContract, turnEndTag } from "../../shared/inbox-turn-end.js";
 import { registerTurnEndClassifier, TURN_ENDS_CHANNEL } from "./index.js";
 
 const PLUGIN_ID = "inbox";
@@ -15,7 +16,7 @@ const SELECTION = {
 };
 
 type Thread = ReturnType<typeof makeThreadResponse>;
-type EventRow = { seq: number; type: string; data: unknown };
+type EventRow = { seq: number; type: string; data: unknown; createdAt?: number };
 
 interface Setup {
   provider?: boolean;
@@ -24,6 +25,8 @@ interface Setup {
   leftoverHelpers?: Thread[];
   outputs?: Record<string, string | null>;
   events?: Record<string, EventRow[]>;
+  /** Event reads asking for any of these types fail. */
+  failingEventTypes?: string[];
   spawn?: () => Promise<Thread>;
 }
 
@@ -72,10 +75,31 @@ async function setup(options: Setup = {}) {
         archive: async () => ({ threads: [] }) as never,
         stop: async () => ({ ok: true as const }),
         events: {
-          list: async ({ threadId, afterSeq }: { threadId: string; afterSeq?: string }) =>
-            (options.events?.[threadId] ?? []).filter(
-              (event) => event.seq > Number(afterSeq ?? 0),
-            ) as never,
+          // Honors the filters the classifier sends, like the server does.
+          list: async ({
+            threadId,
+            afterSeq,
+            types,
+            order,
+            limit,
+          }: {
+            threadId: string;
+            afterSeq?: string;
+            types?: readonly string[];
+            order?: "asc" | "desc";
+            limit?: string;
+          }) => {
+            if (options.failingEventTypes?.some((type) => types?.includes(type))) {
+              throw new Error("events unavailable");
+            }
+            const rows = (options.events?.[threadId] ?? []).filter(
+              (event) =>
+                event.seq > Number(afterSeq ?? 0) &&
+                (!types || types.includes(event.type)),
+            );
+            if (order === "desc") rows.reverse();
+            return rows.slice(0, limit ? Number(limit) : undefined) as never;
+          },
         },
       },
     },
@@ -172,6 +196,7 @@ describe("turn-end classifier: helper thread on the configured provider", () => 
         fallback: null,
         grilling: false,
         turnKey: 2_000,
+        completedAt: null,
         classifiedAt: expect.any(Number),
       },
     });
@@ -331,15 +356,18 @@ describe("turn-end classifier: the heuristic decides", () => {
 });
 
 describe("turn-end classifier: grilling-skill use", () => {
+  // pi's read of the skill as `threads.events.list` returned it
+  // (thr_fry4mv3eju seq 209).
   const grillingRead: EventRow = {
-    seq: 207,
-    type: "item/started",
+    seq: 209,
+    type: "item/completed",
     data: {
       item: {
         type: "fileRead",
-        id: "i41",
+        id: "da7fc1ba58-i41",
         path: "/Users/me/.agents/skills/grilling/SKILL.md",
-        status: "pending",
+        cmd: "read { path: /Users/me/.agents/skills/grilling/... }",
+        status: "completed",
       },
     },
   };
@@ -372,13 +400,13 @@ describe("turn-end classifier: grilling-skill use", () => {
         thr_work: [
           {
             seq: 30,
-            type: "item/started",
+            type: "item/completed",
             data: {
               item: {
                 type: "commandExecution",
                 id: "i3",
                 command: "cat ~/.agents/skills/to-spec/SKILL.md",
-                status: "pending",
+                status: "completed",
               },
             },
           },
@@ -397,8 +425,8 @@ describe("turn-end classifier: grilling-skill use", () => {
   it("reads only the events after the last scan, in pages the server accepts", async () => {
     const otherRead = (seq: number): EventRow => ({
       seq,
-      type: "item/started",
-      data: { item: { type: "fileRead", id: `i${seq}`, path: "/repo/README.md", status: "pending" } },
+      type: "item/completed",
+      data: { item: { type: "fileRead", id: `i${seq}`, path: "/repo/README.md", status: "completed" } },
     });
     const events: Record<string, EventRow[]> = { thr_work: [otherRead(5)] };
     const host = await start({ events });
@@ -413,7 +441,8 @@ describe("turn-end classifier: grilling-skill use", () => {
     });
     const pages = host.harness.inspection.sdk
       .callsTo("threads.events.list")
-      .map(([args]) => args);
+      .map(([args]) => args as { types: readonly string[] })
+      .filter((args) => args.types.includes("item/completed"));
     expect(pages).toEqual([
       expect.objectContaining({ threadId: "thr_work", afterSeq: "0", limit: "100" }),
       expect.objectContaining({ threadId: "thr_work", afterSeq: "5", limit: "100" }),
@@ -644,6 +673,170 @@ describe("turn-end classifier: the turnEnds rpc", () => {
       lastAssistantText: "Done again.",
     });
     expect(spawnCalls(host)).toHaveLength(1);
+  });
+});
+
+describe("turn-end classifier: matching a verdict to its turn (#15)", () => {
+  // A live Claude Code child (thr_jytmedct3z, 2026-11-11): its attention
+  // stayed at its creation through both turns; only the server's
+  // turn/completed events tell the turns apart.
+  const CHILD_ATTENTION = 1794385648259;
+  const FIRST_END = 1794385658337;
+  const SECOND_END = 1794385720248;
+  const completion = (seq: number, createdAt: number): EventRow => ({
+    seq,
+    type: "turn/completed",
+    createdAt,
+    data: { status: "completed" },
+  });
+  const child = (overrides: Partial<Thread> = {}) =>
+    thread({
+      id: "thr_child",
+      parentThreadId: "thr_parent",
+      latestAttentionAt: CHILD_ATTENTION,
+      ...overrides,
+    });
+
+  it("stamps each verdict with its turn's completion time, though a child's attention never moves", async () => {
+    const events: Record<string, EventRow[]> = { thr_child: [completion(45, FIRST_END)] };
+    const host = await start({ events });
+    await host.harness.behavior.emitThreadEvent("thread.idle", {
+      thread: child(),
+      lastAssistantText: "Which one matches how this value is used?",
+    });
+    await expect(turnEnds(host, ["thr_child"])).resolves.toMatchObject({
+      thr_child: { verdict: "question", turnKey: CHILD_ATTENTION, completedAt: FIRST_END },
+    });
+
+    events.thr_child!.push(completion(60, SECOND_END));
+    await host.harness.behavior.emitThreadEvent("thread.idle", {
+      thread: child(),
+      lastAssistantText: "Noted, going with isReady.",
+    });
+    await expect(turnEnds(host, ["thr_child"])).resolves.toMatchObject({
+      thr_child: { verdict: "report", turnKey: CHILD_ATTENTION, completedAt: SECOND_END },
+    });
+    expect(
+      host.harness.inspection.sdk
+        .callsTo("threads.events.list")
+        .map(([args]) => args)
+        .filter((args) => (args as { types: readonly string[] }).types.includes("turn/completed")),
+    ).toContainEqual({
+      threadId: "thr_child",
+      types: ["turn/completed"],
+      order: "desc",
+      limit: "1",
+    });
+  });
+
+  it("stores a null stamp when the turn end can't be read", async () => {
+    const host = await start({
+      events: { thr_child: [completion(45, FIRST_END)] },
+      failingEventTypes: ["turn/completed"],
+    });
+    await host.harness.behavior.emitThreadEvent("thread.idle", {
+      thread: child(),
+      lastAssistantText: "Done.",
+    });
+    await expect(turnEnds(host, ["thr_child"])).resolves.toMatchObject({
+      thr_child: { verdict: "report", completedAt: null },
+    });
+  });
+
+  it("never lets an older child turn end replace a newer verdict", async () => {
+    const events: Record<string, EventRow[]> = { thr_child: [completion(60, SECOND_END)] };
+    const host = await start({ events });
+    await host.harness.behavior.emitThreadEvent("thread.idle", {
+      thread: child(),
+      lastAssistantText: "Noted, going with isReady.",
+    });
+    events.thr_child = [completion(45, FIRST_END)];
+    await host.harness.behavior.emitThreadEvent("thread.idle", {
+      thread: child(),
+      lastAssistantText: "Which one?",
+    });
+    await expect(turnEnds(host, ["thr_child"])).resolves.toMatchObject({
+      thr_child: { verdict: "report", completedAt: SECOND_END },
+    });
+  });
+
+  it("refreshes the thread's keyed read when it stores a verdict", async () => {
+    const host = await start();
+    await host.harness.behavior.emitThreadEvent("thread.idle", {
+      thread: thread(),
+      lastAssistantText: "Done.",
+    });
+    expect(turnEndRpcContract.turnEnds.keyTags?.("thr_work", null)).toEqual([
+      turnEndTag("thr_work"),
+    ]);
+    expect(host.harness.inspection.experimental_rpcInvalidations).toContainEqual([
+      turnEndTag("thr_work"),
+    ]);
+  });
+
+  it("reads a verdict stored before #15 as having no stamp", async () => {
+    const host = await setup();
+    await host.bb.storage.kv.set("turnEnd:thr_old", {
+      verdict: "question",
+      source: "heuristic",
+      fallback: "no-provider",
+      grilling: false,
+      turnKey: 10,
+      classifiedAt: 11,
+      scannedSeq: 0,
+      textHash: "",
+    });
+    await registerTurnEndClassifier(host.bb).ready;
+    await expect(turnEnds(host, ["thr_old"])).resolves.toMatchObject({
+      thr_old: { verdict: "question", turnKey: 10, completedAt: null },
+    });
+  });
+
+  it("at startup, classifies a child that finished a turn while unloaded", async () => {
+    const host = await setup({
+      threads: [child()],
+      outputs: { thr_child: "Noted, going with isReady." },
+      events: { thr_child: [completion(45, FIRST_END), completion(60, SECOND_END)] },
+    });
+    await host.bb.storage.kv.set("turnEnd:thr_child", {
+      verdict: "question",
+      source: "heuristic",
+      fallback: "no-provider",
+      grilling: false,
+      turnKey: CHILD_ATTENTION,
+      completedAt: FIRST_END,
+      classifiedAt: FIRST_END + 11,
+      scannedSeq: 0,
+      textHash: "",
+    });
+    await registerTurnEndClassifier(host.bb).ready;
+    await expect(turnEnds(host, ["thr_child"])).resolves.toMatchObject({
+      thr_child: { verdict: "report", completedAt: SECOND_END },
+    });
+  });
+
+  it("at startup, leaves a child whose verdict covers its latest turn end alone", async () => {
+    const host = await setup({
+      threads: [child()],
+      outputs: { thr_child: "Noted." },
+      events: { thr_child: [completion(45, FIRST_END)] },
+    });
+    await host.bb.storage.kv.set("turnEnd:thr_child", {
+      verdict: "question",
+      source: "heuristic",
+      fallback: "no-provider",
+      grilling: false,
+      turnKey: CHILD_ATTENTION,
+      completedAt: FIRST_END,
+      classifiedAt: FIRST_END + 11,
+      scannedSeq: 0,
+      textHash: "",
+    });
+    await registerTurnEndClassifier(host.bb).ready;
+    expect(host.harness.inspection.sdk.callsTo("threads.output")).toHaveLength(0);
+    await expect(turnEnds(host, ["thr_child"])).resolves.toMatchObject({
+      thr_child: { verdict: "question", completedAt: FIRST_END },
+    });
   });
 });
 

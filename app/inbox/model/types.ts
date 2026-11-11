@@ -5,6 +5,7 @@ import type {
   Later,
   Verification,
 } from "../../../shared/inbox-verification.js";
+import type { TurnEnd } from "../../../shared/inbox-turn-end.js";
 import type { PendingInteractionSummary } from "./blocked.js";
 import type { ComingBack, ScopedChanges } from "./coming-back.js";
 import type { RuntimeTracking } from "./running.js";
@@ -28,6 +29,16 @@ export interface InboxSnapshot {
   /** Latest server turn/completed event per child; null while unknown.
    * Sidebar latestAttentionAt does not advance on ordinary child idle. */
   childCompletions: Readonly<Record<string, number | null>>;
+  /**
+   * The classifier's stored verdict per thread it was asked about (ADR 0009):
+   * null when the server has none, missing while it loads.
+   */
+  turnEnds: Readonly<Record<string, TurnEnd | null>>;
+  /**
+   * When this client started waiting on each verdict read that hasn't
+   * answered (client clock); bounds that wait like a missing verdict's.
+   */
+  turnEndsWaitingSince: Readonly<Record<string, number>>;
   runtime: RuntimeTracking;
   /** Per environment id, once loaded: its diff and pull request. */
   evidence: Readonly<Record<string, EnvironmentEvidence>>;

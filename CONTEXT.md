@@ -16,7 +16,7 @@ _Avoid_: working shelf, active list
 An item's priority: Blocked on you, Broken, Verify, FYI, in that order. Each row shows it as one word (answer / approve / failed / verify / fyi).
 
 **Blocked on you**:
-The tier for a thread that can't continue without the human: a question, a permission, a plan to review.
+The tier for a thread that can't continue without the human: a question (a question form, or a turn that ended with a plain-text question), a permission, a plan to review.
 
 **Broken**:
 The tier for a thread that stopped on an error or got stuck. Failing PR checks are not Broken; that work stays under Verify.
@@ -28,7 +28,7 @@ The tier for finished work with evidence to check: a diff, a PR, tests. Includes
 The tier for a report with nothing to verify, including a parent's summary of its `parent`-audience children. Opening it clears it.
 
 **Inbox start**:
-When the plugin first ran. Verify and FYI items only cover work whose latest attention is after it (ADR 0010).
+When the plugin first ran. Verify and FYI items only cover work whose latest attention is after it, and a plain-text question is Blocked on you only if its turn ended after it. Pending question forms, plans and permissions show however old (ADR 0010).
 
 **Evidence**:
 What an item carries for the human to check: diffstat, PR checks, tests, child reports.

@@ -108,6 +108,8 @@ function renderInbox(
       inboxStart: () => ({ startedAt: 0 }),
       verifications: none,
       laters: none,
+      // No turn-end verdicts stored: every finished turn is a report.
+      turnEnds: none,
       status: (input: unknown) => (
         statusKeys.push(...keysOf(input)),
         Object.fromEntries(

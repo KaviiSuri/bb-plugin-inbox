@@ -5,11 +5,13 @@ import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { audience } from "./audience.js";
 import { blocked } from "./blocked.js";
 import { broken, stuck, stuckDeadlines } from "./broken.js";
+import { withChildTurnEnd } from "./child-attention.js";
 import { comingBack } from "./coming-back.js";
 import { fyi } from "./fyi.js";
 import { later } from "./later.js";
 import { graceDeadlines, running, settling } from "./running.js";
 import { sinceStart } from "./since-start.js";
+import { asks, classifyDeadlines } from "./turn-end.js";
 import { verify } from "./verify.js";
 import {
   TIER_ORDER,
@@ -31,6 +33,13 @@ export {
 } from "./blocked.js";
 export { STUCK_WAITING_FOR_HOST_MS } from "./broken.js";
 export { isLater } from "./later.js";
+export { withChildTurnEnd } from "./child-attention.js";
+export {
+  CLASSIFY_GRACE_MS,
+  needsTurnEnd,
+  turnEndedAt,
+  type TurnEndState,
+} from "./turn-end.js";
 export {
   scopeChanges,
   scopeTarget,
@@ -64,6 +73,7 @@ const THREAD_RULES: readonly ThreadRule[] = [
   running,
   broken,
   settling,
+  asks,
   sinceStart,
   comingBack,
   verify,
@@ -95,8 +105,9 @@ export function deriveInbox(snapshot: InboxSnapshot): InboxView {
   let items: InboxItem[] = [];
   const runningThreads: RunningThread[] = [];
   const unread = new Set<string>();
-  for (const thread of snapshot.threads) {
-    if (thread.isHidden || thread.isArchived) continue;
+  for (const listed of snapshot.threads) {
+    if (listed.isHidden || listed.isArchived) continue;
+    const thread = withChildTurnEnd(listed, snapshot);
     if (thread.isUnread) unread.add(thread.id);
     const outcome = outcomeOf(thread, snapshot);
     if (outcome.kind === "running") {
@@ -134,13 +145,14 @@ export function deriveInbox(snapshot: InboxSnapshot): InboxView {
 }
 
 /**
- * When the view next changes with no new snapshot: a grace ending or a wait
- * for a machine turning stuck. Null when nothing is timed.
+ * When the view next changes with no new snapshot: a grace ending, a wait
+ * for a machine turning stuck, or a verdict's wait running out. Null when nothing is timed.
  */
 export function nextChangeAt(snapshot: InboxSnapshot): number | null {
   const deadlines = [
     ...graceDeadlines(snapshot),
     ...stuckDeadlines(snapshot),
+    ...classifyDeadlines(snapshot),
   ].filter((at) => at > snapshot.now);
   return deadlines.length > 0 ? Math.min(...deadlines) : null;
 }

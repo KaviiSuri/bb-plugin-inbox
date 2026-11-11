@@ -1,5 +1,10 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
-import { z } from "zod";
+import {
+  selectionSchema,
+  type ClassifierSelection,
+} from "../../shared/inbox-turn-end.js";
+
+export { selectionSchema, type ClassifierSelection };
 
 // The provider, model and reasoning level the helper thread runs on. Kept in
 // the plugin's KV rather than a bb setting, so the settings page shows only
@@ -11,17 +16,6 @@ import { z } from "zod";
 const SELECTION_KV_KEY = "classifier:selection";
 
 export const SELECTION_CHANGED_CHANNEL = "turn-end-classifier";
-
-export const selectionSchema = z
-  .object({
-    providerId: z.string().min(1),
-    model: z.string().min(1),
-    reasoningLevel: z.string().min(1),
-    serviceTier: z.string().min(1).optional(),
-  })
-  .strict();
-
-export type ClassifierSelection = z.infer<typeof selectionSchema>;
 
 export function createSelectionStore(bb: BbPluginApi) {
   return {

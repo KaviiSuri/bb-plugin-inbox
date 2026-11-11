@@ -98,6 +98,8 @@ function signOffRpc(verifications: Rows, laters: Rows) {
     inboxStart: () => ({ startedAt: 0 }),
     verifications: read(verifications),
     laters: read(laters),
+    // No turn-end verdicts stored: every finished turn is a report.
+    turnEnds: read({}),
     verify: vi.fn((input: unknown) => {
       const { threadId, client } = input as MarkInput;
       verifications[threadId] = {

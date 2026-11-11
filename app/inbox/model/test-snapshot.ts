@@ -1,5 +1,6 @@
 // Shared fixtures for the inbox model's tests.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
+import type { TurnEnd } from "../../../shared/inbox-turn-end.js";
 import type { PendingInteractionSummary } from "./blocked.js";
 import type { InboxSnapshot } from "./types.js";
 import type { EnvironmentEvidence, PullRequestEvidence } from "./verify.js";
@@ -13,15 +14,42 @@ export const QUESTION: PendingInteractionSummary = {
   reason: "Asks: which database?",
 };
 
+/** A stored verdict, as the `turnEnds` rpc returns it. */
+export function turnEnd(overrides: Partial<TurnEnd> = {}): TurnEnd {
+  return {
+    verdict: "report",
+    source: "heuristic",
+    fallback: "no-provider",
+    grilling: false,
+    turnKey: 0,
+    completedAt: null,
+    classifiedAt: 0,
+    ...overrides,
+  };
+}
+
 export function snapshot(overrides: Partial<InboxSnapshot> = {}): InboxSnapshot {
+  const threads = overrides.threads ?? [];
+  // Simple fixtures use coincident attention/completion times. Lifecycle
+  // regressions override these with captured server turn/completed times.
+  const childCompletions =
+    overrides.childCompletions ??
+    Object.fromEntries(threads.map((t) => [t.id, t.latestAttentionAt]));
   return {
     threads: [],
     interactions: {},
-    // Simple fixtures use coincident attention/completion times. Lifecycle
-    // regressions override these with captured server turn/completed times.
-    childCompletions: Object.fromEntries(
-      (overrides.threads ?? []).map((t) => [t.id, t.latestAttentionAt]),
+    childCompletions,
+    // Every turn ended in a report unless a test says otherwise.
+    turnEnds: Object.fromEntries(
+      threads.map((t) => [
+        t.id,
+        turnEnd({
+          turnKey: t.latestAttentionAt,
+          completedAt: childCompletions[t.id] ?? null,
+        }),
+      ]),
     ),
+    turnEndsWaitingSince: {},
     runtime: { running: {}, stoppedAt: {}, waitingForHostSince: {} },
     evidence: {},
     verifications: {},

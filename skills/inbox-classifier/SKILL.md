@@ -7,8 +7,10 @@ description: Inspect or change the Inbox plugin's turn-end classifier, which dec
 
 On every `thread.idle`, the Inbox plugin decides whether the turn ended with a
 question for the user (`question`) or a report (`report`), and records whether
-the thread has ever used the grilling skill. The Inbox tab reads these to
-decide a child thread's audience (ADR 0008).
+the thread has ever used the grilling skill. The Inbox tab reads these: a
+finished thread whose turn ended with a question is Blocked on you (word
+`answer`), and a child that asked a question or used the grilling skill gets
+its own item naming its parent (ADR 0008).
 
 ## Choosing the model
 
@@ -35,7 +37,13 @@ are read by the model and the rest by the plain rule.
 
 `bb plugin rpc call inbox turnEnds --input-file <file>` with
 `{"keys": ["thr_…"]}` returns, per thread, `null` or
-`{verdict, source, fallback, grilling, turnKey, classifiedAt}`. `source` is
+`{verdict, source, fallback, grilling, turnKey, completedAt, classifiedAt}`.
+`turnKey` is the thread's `latestAttentionAt` at that turn end; `completedAt`
+is the server time of its latest `turn/completed` event. bb doesn't move a
+child's attention when it finishes, so the Inbox matches a child's verdict to
+its turn by `completedAt` and a top-level thread's by `turnKey`; a verdict for
+an earlier turn is never applied to a later one. Grilling counts once a load
+of the skill completed (a failed skill load doesn't). `source` is
 `model` or `heuristic`; `fallback` says why the heuristic decided
 (`no-provider`, `no-text`, `startup`, `failed`, `timeout`, `unparseable`).
 Hidden threads, archived threads and the helpers themselves are never

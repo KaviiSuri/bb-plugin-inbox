@@ -1,6 +1,7 @@
 // Feeds the inbox model from the live sidebar: threads, the kinds of their
 // pending interactions, the timing the grace and "stuck" need, evidence per
-// environment, and the server's Verifications and Laters.
+// environment, the server's Verifications and Laters, and the classifier's
+// turn-end verdicts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   experimental_useRpcKeyedQuery,
@@ -21,6 +22,7 @@ import {
   nextChangeAt,
   summarizePendingInteractions,
   trackRuntime,
+  withChildTurnEnd,
   type InboxSnapshot,
   type EnvironmentEvidence,
   type InboxView,
@@ -30,6 +32,8 @@ import {
 import { useChildCompletions } from "./useChildCompletions.js";
 import { useScopedChanges } from "./useScopedChanges.js";
 import { useInboxStart, useSignOffs } from "./useSignOffs.js";
+import { useTurnEnds } from "./useTurnEnds.js";
+import type { TurnEnd } from "../../shared/inbox-turn-end.js";
 
 const NO_TRACKING: RuntimeTracking = {
   running: {},
@@ -49,13 +53,23 @@ export function useInboxView(): InboxViewState {
   const { status, threads } = experimental_useSidebarThreads();
   const interactions = usePendingInteractions(threads);
   const childCompletions = useChildCompletions(threads);
+  // Children dated by their latest turn end, as their own items see them,
+  // so evidence and scoped reads are keyed like the model compares.
   const visible = useMemo(
-    () => threads.filter((t) => !t.isHidden && !t.isArchived),
-    [threads],
+    () =>
+      threads
+        .filter((t) => !t.isHidden && !t.isArchived)
+        .map((t) => withChildTurnEnd(t, { childCompletions })),
+    [threads, childCompletions],
   );
   const signOffs = useSignOffs(useMemo(() => visible.map((t) => t.id), [visible]));
   const inboxStartedAt = useInboxStart();
-  const evidence = useEvidence(visible, inboxStartedAt);
+  const { turnEnds, waitingSince: turnEndsWaitingSince } = useTurnEnds(
+    threads,
+    childCompletions,
+    inboxStartedAt,
+  );
+  const evidence = useEvidence(visible, inboxStartedAt, turnEnds);
   const scoped = useScopedChanges(visible, signOffs.verifications);
   const [tick, setTick] = useState(0);
 
@@ -71,6 +85,8 @@ export function useInboxView(): InboxViewState {
       threads,
       interactions,
       childCompletions,
+      turnEnds,
+      turnEndsWaitingSince,
       runtime,
       evidence,
       verifications: signOffs.verifications,
@@ -81,7 +97,7 @@ export function useInboxView(): InboxViewState {
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, childCompletions, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
+    [threads, interactions, childCompletions, turnEnds, turnEndsWaitingSince, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
@@ -113,8 +129,9 @@ const MAX_EVIDENCE_KEYS = 200;
 
 /**
  * Evidence for the environments of threads that could be Verify or FYI:
- * stopped, not waiting on the human, not folded into a parent (a child),
- * and with work after the Inbox started (none until that start has loaded).
+ * stopped, not waiting on the human, not folded into a parent (a child that
+ * hasn't used the grilling skill), and with work after the Inbox started
+ * (none until that start has loaded).
  * Verified threads are read too: their PR checks can turn failing after
  * the Verification. An
  * environment is in the result once both its git status and its pull request
@@ -123,6 +140,7 @@ const MAX_EVIDENCE_KEYS = 200;
 function useEvidence(
   visible: readonly PluginSidebarThread[],
   inboxStartedAt: number | null,
+  turnEnds: Readonly<Record<string, TurnEnd | null>>,
 ): Readonly<Record<string, EnvironmentEvidence>> {
   const keys = useMemo(() => {
     const visibleIds = new Set(visible.map((t) => t.id));
@@ -131,8 +149,10 @@ function useEvidence(
         (t) =>
           t.environment?.id &&
           // A child without a pending interaction folds into its parent's
-          // item, so its own evidence is never shown.
-          !(t.parentThreadId && visibleIds.has(t.parentThreadId)) &&
+          // item, so its own evidence is never shown, unless it grills the
+          // human: then its finished work is its own item (ADR 0008).
+          (!(t.parentThreadId && visibleIds.has(t.parentThreadId)) ||
+            turnEnds[t.id]?.grilling === true) &&
           !isRunning(t) &&
           !t.hasPendingInteraction &&
           inboxStartedAt !== null &&
@@ -145,7 +165,7 @@ function useEvidence(
       ids.add(thread.environment!.id!);
     }
     return [...ids].sort();
-  }, [visible, inboxStartedAt]);
+  }, [visible, inboxStartedAt, turnEnds]);
   const keysId = keys.join(",");
   const stableKeys = useMemo(() => keys, [keysId]); // eslint-disable-line react-hooks/exhaustive-deps
 
