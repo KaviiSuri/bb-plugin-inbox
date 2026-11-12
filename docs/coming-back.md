@@ -35,6 +35,18 @@ and fresh text. The verifying client explicitly refetches after acknowledgement;
 a live check found that its optimistic timestamp could otherwise outlive the
 write and prevent any future return until reload.
 
+#25 found that one refetch isn't enough. bb releases a prediction only for a
+read that started after the write was acknowledged. The server invalidates
+the sign-off tag before it answers, so the realtime refresh starts first, and
+a refetch asked for while that read is in flight joins it rather than reading
+again. Live, a Later's response headers arrived at 5 ms, the invalidation
+and both reads at 6 ms, and the response body (the acknowledgement) at 7 ms;
+no later read followed. Verify and Later now read again, with growing waits,
+until the server's row has replaced the prediction.
+`app/inbox/sign-off-return.test.tsx` drives that order through the real SDK
+cache for both. Screenshot of the returned item on the signing client:
+`docs/screenshots/inbox-phone-return-after-signoff.jpg`.
+
 ## Conservative fallbacks
 
 A null diff base, old base without the needed text, oversized or binary file,
