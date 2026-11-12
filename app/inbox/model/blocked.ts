@@ -20,6 +20,12 @@ export interface PendingInteractionSummary {
   reason: string;
   /** For an approval, what it approves; a plan review makes a child `human`. */
   subject?: ApprovalSubject["kind"];
+  /**
+   * When the latest still-pending interaction arrived (server clock, ms). bb
+   * doesn't advance a thread's `latestAttentionAt` for an ask that arrives
+   * mid-turn, so New / Seen compares against this instead (#24).
+   */
+  askedAt?: number;
 }
 
 /**
@@ -29,8 +35,12 @@ export interface PendingInteractionSummary {
 export function summarizePendingInteractions(
   interactions: PendingInteractionList,
 ): PendingInteractionSummary | null {
-  const pending = interactions.find((i) => i.status === "pending");
-  return pending ? summarize(pending) : null;
+  const pending = interactions.filter((i) => i.status === "pending");
+  if (pending.length === 0) return null;
+  return {
+    ...summarize(pending[0]!),
+    askedAt: Math.max(...pending.map((i) => i.createdAt)),
+  };
 }
 
 function summarize(interaction: PendingInteraction): PendingInteractionSummary {
@@ -78,13 +88,21 @@ function approvalReason(subject: ApprovalSubject): string {
   }
 }
 
-/** A pending interaction makes an item, even while the thread runs. */
+/**
+ * A pending interaction makes an item, even while the thread runs. A thread
+ * already read holds back while its interaction loads: the ask may have
+ * arrived after that read, and showing it in Seen first would flash (#24).
+ * A read that failed or found nothing pending shows the generic item.
+ */
 export function blocked(
   thread: PluginSidebarThread,
-  { interactions }: InboxSnapshot,
+  { interactions, interactionsMissing = {} }: InboxSnapshot,
 ): Outcome | null {
   if (!thread.hasPendingInteraction) return null;
   const interaction = interactions[thread.id];
+  if (!interaction && !thread.isUnread && !interactionsMissing[thread.id]) {
+    return { kind: "none" };
+  }
   return item({
     tier: "blocked",
     word: interaction?.kind === "approval" ? "approve" : "answer",

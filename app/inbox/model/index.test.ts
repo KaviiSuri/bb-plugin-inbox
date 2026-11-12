@@ -45,8 +45,11 @@ describe("deriveInbox: New for you and Seen", () => {
     }),
   ];
 
+  // The ask arrived before the thread was opened.
+  const interactions = { opened_ask: { ...QUESTION, askedAt: 25 } };
+
   it("moves an item to Seen once its thread was opened since its latest attention", () => {
-    const view = deriveInbox(snapshot({ threads }));
+    const view = deriveInbox(snapshot({ threads, interactions }));
     expect(view.newForYou.map((item) => item.threadId)).toEqual(["not_opened"]);
     expect(view.seen.map((item) => item.threadId)).toEqual([
       "opened_ask",
@@ -55,7 +58,7 @@ describe("deriveInbox: New for you and Seen", () => {
   });
 
   it("counts only New for you on the Inbox tab", () => {
-    expect(deriveInbox(snapshot({ threads })).tabCount).toBe(1);
+    expect(deriveInbox(snapshot({ threads, interactions })).tabCount).toBe(1);
     expect(
       deriveInbox(
         snapshot({
@@ -63,6 +66,7 @@ describe("deriveInbox: New for you and Seen", () => {
             ...threads,
             makeSidebarThread({ id: "busy", status: "active" }),
           ],
+          interactions,
         }),
       ).tabCount,
     ).toBe(1);

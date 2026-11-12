@@ -60,6 +60,44 @@ describe("deriveInbox: Blocked on you", () => {
   });
 });
 
+describe("deriveInbox: an ask that arrives mid-turn (#24)", () => {
+  // Attention at 40 (the turn started), read at 50, asked at 60.
+  const read = makeSidebarThread({
+    id: "thr_q",
+    status: "active",
+    hasPendingInteraction: true,
+    latestAttentionAt: 40,
+    lastReadAt: 50,
+  });
+  const asked = (askedAt: number) => ({ thr_q: { ...QUESTION, askedAt } });
+
+  it("read before the ask → New, dated by the ask", () => {
+    const view = deriveInbox(snapshot({ threads: [read], interactions: asked(60) }));
+    expect(view.newForYou).toMatchObject([{ threadId: "thr_q", attentionAt: 60 }]);
+    expect(view.tabCount).toBe(1);
+  });
+
+  it("opened after the ask → Seen", () => {
+    const view = deriveInbox(
+      snapshot({ threads: [{ ...read, lastReadAt: 70 }], interactions: asked(60) }),
+    );
+    expect(view.newForYou).toEqual([]);
+    expect(view.seen).toMatchObject([{ threadId: "thr_q" }]);
+  });
+
+  it("holds a read thread back while its ask's time loads", () => {
+    const view = deriveInbox(snapshot({ threads: [read] }));
+    expect([...view.newForYou, ...view.seen]).toEqual([]);
+  });
+
+  it("shows a read thread whose interaction read failed, in Seen", () => {
+    const view = deriveInbox(
+      snapshot({ threads: [read], interactionsMissing: { thr_q: true } }),
+    );
+    expect(view.seen).toMatchObject([{ threadId: "thr_q", reason: "Waiting for you" }]);
+  });
+});
+
 describe("summarizePendingInteractions: answer vs approve", () => {
   const base = {
     createdAt: 1,
@@ -105,6 +143,7 @@ describe("summarizePendingInteractions: answer vs approve", () => {
     expect(summary).toEqual({
       kind: "user_question",
       reason: "Asks: Which database should we use?",
+      askedAt: 1,
     });
   });
 
@@ -147,7 +186,7 @@ describe("summarizePendingInteractions: answer vs approve", () => {
       summarizePendingInteractions([
         approval(subject),
       ] as unknown as PendingInteractionList),
-    ).toEqual({ kind: "approval", reason, subject: subject.kind });
+    ).toEqual({ kind: "approval", reason, subject: subject.kind, askedAt: 1 });
   });
 
   it("ignores interactions that are no longer pending", () => {
@@ -167,6 +206,16 @@ describe("summarizePendingInteractions: answer vs approve", () => {
           payload: { kind: "plugin", data: null, title: "Enter the API token" },
         },
       ] as unknown as PendingInteractionList),
-    ).toEqual({ kind: "plugin", reason: "Enter the API token" });
+    ).toEqual({ kind: "plugin", reason: "Enter the API token", askedAt: 1 });
+  });
+
+  it("dates the ask by the newest still-pending interaction", () => {
+    expect(
+      summarizePendingInteractions([
+        { ...approval({ kind: "file_change" }), createdAt: 90, status: "resolved" },
+        { ...approval({ kind: "file_change" }), createdAt: 40 },
+        { ...approval({ kind: "file_change" }), createdAt: 60 },
+      ] as unknown as PendingInteractionList)?.askedAt,
+    ).toBe(60);
   });
 });

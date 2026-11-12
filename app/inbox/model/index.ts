@@ -2,6 +2,7 @@
 // React and no SDK calls. Each concern lives in its own module; this file only
 // composes them, so a new rule is one line here.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
+import { withAskedAt } from "./asked-attention.js";
 import { audience } from "./audience.js";
 import { blocked } from "./blocked.js";
 import { broken, stuck, stuckDeadlines } from "./broken.js";
@@ -34,6 +35,7 @@ export {
 export { STUCK_WAITING_FOR_HOST_MS } from "./broken.js";
 export { isLater } from "./later.js";
 export { withChildTurnEnd } from "./child-attention.js";
+export { askedAt, withAskedAt } from "./asked-attention.js";
 export {
   CLASSIFY_GRACE_MS,
   needsTurnEnd,
@@ -107,7 +109,7 @@ export function deriveInbox(snapshot: InboxSnapshot): InboxView {
   const unread = new Set<string>();
   for (const listed of snapshot.threads) {
     if (listed.isHidden || listed.isArchived) continue;
-    const thread = withChildTurnEnd(listed, snapshot);
+    const thread = withAskedAt(withChildTurnEnd(listed, snapshot), snapshot);
     if (thread.isUnread) unread.add(thread.id);
     const outcome = outcomeOf(thread, snapshot);
     if (outcome.kind === "running") {
