@@ -3,6 +3,7 @@ import type {
   PluginBrowserBbSdk,
   PluginSidebarThread,
 } from "@get-bb/plugin-sdk/app";
+import { askLoading } from "./asked-attention.js";
 import { item, type InboxSnapshot, type Outcome } from "./types.js";
 
 /** What `threads.interactions.list` returns; the SDK doesn't name the type. */
@@ -92,17 +93,16 @@ function approvalReason(subject: ApprovalSubject): string {
  * A pending interaction makes an item, even while the thread runs. A thread
  * already read holds back while its interaction loads: the ask may have
  * arrived after that read, and showing it in Seen first would flash (#24).
- * A read that failed or found nothing pending shows the generic item.
+ * A read that failed, found nothing pending or outlasted its grace shows the
+ * generic item.
  */
 export function blocked(
   thread: PluginSidebarThread,
-  { interactions, interactionsMissing = {} }: InboxSnapshot,
+  snapshot: InboxSnapshot,
 ): Outcome | null {
   if (!thread.hasPendingInteraction) return null;
-  const interaction = interactions[thread.id];
-  if (!interaction && !thread.isUnread && !interactionsMissing[thread.id]) {
-    return { kind: "none" };
-  }
+  const interaction = snapshot.interactions[thread.id];
+  if (!thread.isUnread && askLoading(thread, snapshot)) return { kind: "none" };
   return item({
     tier: "blocked",
     word: interaction?.kind === "approval" ? "approve" : "answer",

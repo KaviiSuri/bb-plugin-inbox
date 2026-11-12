@@ -51,7 +51,8 @@ export interface InboxViewState {
 
 export function useInboxView(): InboxViewState {
   const { status, threads } = experimental_useSidebarThreads();
-  const { interactions, interactionsMissing } = usePendingInteractions(threads);
+  const { interactions, interactionsMissing, interactionsWaitingSince } =
+    usePendingInteractions(threads);
   const childCompletions = useChildCompletions(threads);
   // Children dated by their latest turn end, as their own items see them,
   // so evidence and scoped reads are keyed like the model compares.
@@ -85,6 +86,7 @@ export function useInboxView(): InboxViewState {
       threads,
       interactions,
       interactionsMissing,
+      interactionsWaitingSince,
       childCompletions,
       turnEnds,
       turnEndsWaitingSince,
@@ -98,7 +100,7 @@ export function useInboxView(): InboxViewState {
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, interactionsMissing, childCompletions, turnEnds, turnEndsWaitingSince, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
+    [threads, interactions, interactionsMissing, interactionsWaitingSince, childCompletions, turnEnds, turnEndsWaitingSince, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
@@ -201,11 +203,15 @@ function useEvidence(
  * The interaction each waiting thread is blocked on, fetched only for threads
  * with `hasPendingInteraction`, and again whenever that thread changes. Also
  * the waiting threads whose read failed or found nothing pending, so the
- * model shows them rather than hold them back as loading.
+ * model shows them rather than hold them back as loading, and when this client
+ * started waiting on each read still open, so the model bounds that wait.
  */
 export function usePendingInteractions(
   threads: readonly PluginSidebarThread[],
-): Pick<InboxSnapshot, "interactions" | "interactionsMissing"> {
+): Pick<
+  InboxSnapshot,
+  "interactions" | "interactionsMissing" | "interactionsWaitingSince"
+> {
   const sdk = useSdk();
   const [fetched, setFetched] = useState<
     Readonly<Record<string, { version: string; summary: PendingInteractionSummary | null }>>
@@ -253,14 +259,20 @@ export function usePendingInteractions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sdk, waitingKey]);
 
+  // First time each still-open read was seen, kept across renders.
+  const openSinceRef = useRef<Record<string, number>>({});
   return useMemo(() => {
     const interactions: Record<string, PendingInteractionSummary> = {};
     const interactionsMissing: Record<string, true> = {};
+    const interactionsWaitingSince: Record<string, number> = {};
+    const now = Date.now();
     for (const { id } of waiting) {
       const entry = fetched[id];
       if (entry?.summary) interactions[id] = entry.summary;
       else if (entry) interactionsMissing[id] = true;
+      else interactionsWaitingSince[id] = openSinceRef.current[id] ?? now;
     }
-    return { interactions, interactionsMissing };
+    openSinceRef.current = interactionsWaitingSince;
+    return { interactions, interactionsMissing, interactionsWaitingSince };
   }, [waiting, fetched]);
 }

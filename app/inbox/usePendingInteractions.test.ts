@@ -11,7 +11,9 @@ const { list, sdk } = vi.hoisted(() => {
   return { list, sdk: { threads: { interactions: { list } } } };
 });
 vi.mock("@get-bb/plugin-sdk/app", () => ({ useSdk: () => sdk }));
-beforeEach(() => list.mockReset());
+beforeEach(() => {
+  list.mockReset();
+});
 afterEach(cleanup);
 
 const waiting = makeSidebarThread({ id: "thr_q", hasPendingInteraction: true, updatedAt: 10 });
@@ -54,4 +56,21 @@ it("forgets an answered ask, so the next one loads instead of taking its time", 
   await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
   expect(hook.result.current.interactions).toEqual({});
   expect(hook.result.current.interactionsMissing).toEqual({});
+});
+
+it("keeps when it started waiting on an open read across re-renders, so the grace isn't reset", async () => {
+  list.mockReturnValue(new Promise(() => {}));
+  vi.useFakeTimers({ toFake: ["Date"], now: 1_000 });
+  try {
+    const hook = renderHook(({ threads }) => usePendingInteractions(threads), {
+      initialProps: { threads: [waiting] },
+    });
+    expect(hook.result.current.interactionsWaitingSince).toEqual({ thr_q: 1_000 });
+    vi.setSystemTime(4_000);
+    const other = makeSidebarThread({ id: "thr_other", hasPendingInteraction: true });
+    hook.rerender({ threads: [waiting, other] });
+    expect(hook.result.current.interactionsWaitingSince).toEqual({ thr_q: 1_000, thr_other: 4_000 });
+  } finally {
+    vi.useRealTimers();
+  }
 });

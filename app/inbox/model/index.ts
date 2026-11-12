@@ -2,7 +2,7 @@
 // React and no SDK calls. Each concern lives in its own module; this file only
 // composes them, so a new rule is one line here.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
-import { withAskedAt } from "./asked-attention.js";
+import { askDeadlines, withAskedAt } from "./asked-attention.js";
 import { audience } from "./audience.js";
 import { blocked } from "./blocked.js";
 import { broken, stuck, stuckDeadlines } from "./broken.js";
@@ -35,7 +35,11 @@ export {
 export { STUCK_WAITING_FOR_HOST_MS } from "./broken.js";
 export { isLater } from "./later.js";
 export { withChildTurnEnd } from "./child-attention.js";
-export { askedAt, withAskedAt } from "./asked-attention.js";
+export {
+  ASK_READ_GRACE_MS,
+  askedAt,
+  withAskedAt,
+} from "./asked-attention.js";
 export {
   CLASSIFY_GRACE_MS,
   needsTurnEnd,
@@ -148,13 +152,15 @@ export function deriveInbox(snapshot: InboxSnapshot): InboxView {
 
 /**
  * When the view next changes with no new snapshot: a grace ending, a wait
- * for a machine turning stuck, or a verdict's wait running out. Null when nothing is timed.
+ * for a machine turning stuck, a verdict's wait running out, or an
+ * interaction read's grace ending. Null when nothing is timed.
  */
 export function nextChangeAt(snapshot: InboxSnapshot): number | null {
   const deadlines = [
     ...graceDeadlines(snapshot),
     ...stuckDeadlines(snapshot),
     ...classifyDeadlines(snapshot),
+    ...askDeadlines(snapshot),
   ].filter((at) => at > snapshot.now);
   return deadlines.length > 0 ? Math.min(...deadlines) : null;
 }

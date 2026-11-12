@@ -10,8 +10,11 @@
 - The item's attention time is the newest still-pending interaction's
   `createdAt`, from `sdk.threads.interactions.list`. `updatedAt` is never used.
 - A thread already read holds back while that time loads, so it doesn't show in
-  Seen and then jump to New. When the read fails or finds nothing pending, the
-  item still shows, on its generic reason ("Waiting for you").
+  Seen and then jump to New. The hold-back lasts at most 5 seconds
+  (`ASK_READ_GRACE_MS`), counted on the client from when the read started. After
+  that, or when the read fails or finds nothing pending, the item shows on its
+  generic reason ("Waiting for you"). A read that answers later still dates it.
+  A read cancelled because the thread changed doesn't count as failed.
 
 ## Why
 

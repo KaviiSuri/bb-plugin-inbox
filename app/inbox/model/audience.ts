@@ -8,7 +8,7 @@
 // of its owner, the nearest ancestor that answers to the human. A child waiting on a permission stays with its
 // parent agent until the parent stops; then the owner's item asks to approve.
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
-import { askedAt } from "./asked-attention.js";
+import { askedAt, askLoading } from "./asked-attention.js";
 import { broken, stuck } from "./broken.js";
 import { isRunning, settling } from "./running.js";
 import { needsTurnEnd, turnEndOf, usedGrilling } from "./turn-end.js";
@@ -123,7 +123,7 @@ function newsOf(
     // loading, but don't lose a waiting child whose read failed.
     const interaction = snapshot.interactions[child.id];
     if (!interaction) {
-      if (!snapshot.interactionsMissing?.[child.id]) return null;
+      if (askLoading(child, snapshot)) return null;
       return { ...base, state: "waiting", reason: "Waiting for you" };
     }
     // Dated by when it asked: bb doesn't move attention for it (#24).
