@@ -3,7 +3,8 @@
 // Issue #25: on the client that tapped Verify or Later, the thread must come
 // back when it finishes new work, without a reload. Live, the server's
 // refresh of the thread's sign-off reads starts before the write is
-// acknowledged, and is still reading when the acknowledgement lands.
+// acknowledged, and is still reading when the acknowledgement lands. The
+// return must not depend on any read landing at all.
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -98,6 +99,34 @@ const report = (turnKey: number) => ({
   classifiedAt: turnKey,
 });
 
+/** What the server's Verification covered: src/a.ts as it was then. */
+const DIFF_BASE = {
+  headSha: "aaaa111",
+  mergeBaseRef: "base999",
+  files: [
+    { path: "src/a.ts", revision: "100644:1111:100644:a0a0", content: "a\n", headMode: "100644" },
+  ],
+};
+
+/** bb--git since the Verification's head: a.ts as verified, c.ts new. */
+async function gitFiles<T>(args: {
+  method: string;
+  outputSchema: { parse(value: unknown): T };
+}): Promise<T> {
+  if (args.method === "fileSide") {
+    return args.outputSchema.parse({
+      outcome: "available",
+      file: { content: "a\n", contentEncoding: "utf8" },
+    });
+  }
+  return args.outputSchema.parse({
+    outcome: "available",
+    mergeBaseRef: "aaaa111",
+    truncated: false,
+    files: [{ path: "src/c.ts", revision: "000000:0000:100644:c1c1", additions: 5, deletions: 2 }],
+  });
+}
+
 function gate() {
   let open!: () => void;
   const opened = new Promise<void>((resolve) => (open = resolve));
@@ -113,9 +142,11 @@ function server() {
   const laters: Rows = {};
   let acknowledgement = gate();
   let readsHeld: Promise<void> | null = null;
+  let readsFail = false;
   const readKeys: string[][] = [];
   const read = (rows: Rows) => async (input: unknown) => {
     readKeys.push(keysOf(input));
+    if (readsFail) throw new Error("server unreachable");
     const answer = Object.fromEntries(
       keysOf(input).map((key) => [key, rows[key] ?? null]),
     );
@@ -132,6 +163,10 @@ function server() {
   return {
     readKeys,
     acknowledge: () => acknowledgement.open(),
+    /** Sign-off reads fail from now on: the server's row never arrives. */
+    failReads() {
+      readsFail = true;
+    },
     /** The next writes fail instead of being stored. */
     refuseWrites() {
       refuse = true;
@@ -159,7 +194,7 @@ function server() {
           threadId,
           verifiedAt: 1_000,
           client,
-          diffBase: null,
+          diffBase: DIFF_BASE,
           prChecksState: "passing",
         };
         return written(verifications[threadId]);
@@ -209,7 +244,10 @@ function renderInbox() {
         Object.fromEntries(keysOf(input).map((key) => [key, { outcome: "absent" }])),
       ...backend.rpc,
     },
-    sdk: { threads: { interactions: { list: async () => [] } } },
+    sdk: {
+      threads: { interactions: { list: async () => [] } },
+      plugins: { callRpc: gitFiles },
+    },
   });
   return { backend, slot };
 }
@@ -254,13 +292,16 @@ async function finishAgain(slot: RenderedSlot) {
 }
 
 describe("Inbox: a signed-off thread comes back on the client that signed it off (#25)", () => {
-  it("comes back after Verify when its new work finishes, without a reload", async () => {
+  it("comes back after Verify when its new work finishes, scoped by the server's Verification", async () => {
     const inbox = renderInbox();
     await signOff(inbox, "Verify");
 
     await finishAgain(inbox.slot);
 
-    expect(await screen.findByRole("button", { name: ROW }, { timeout: 3_000 })).toBeTruthy();
+    // Scoping needs the server's diff base, which the prediction lacks.
+    fireEvent.click(await screen.findByRole("button", { name: ROW }, { timeout: 3_000 }));
+    expect(await screen.findByText("1 file · +5 −2")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Already verified · 1 file/ })).toBeTruthy();
   });
 
   it("comes back after Later when its new work finishes, without a reload", async () => {
@@ -282,6 +323,27 @@ describe("Inbox: a signed-off thread comes back on the client that signed it off
       fireEvent.click(await screen.findByRole("button", { name: action }));
       await waitFor(() => expect(screen.queryByRole("button", { name: ROW })).toBeNull());
       backend.acknowledge();
+
+      expect(await screen.findByRole("button", { name: ROW })).toBeTruthy();
+    },
+  );
+
+  it.each(["Verify", "Later"] as const)(
+    "comes back after %s even if the server's row never reaches this client",
+    async (action) => {
+      const { backend, slot } = renderInbox();
+      fireEvent.click(await screen.findByRole("button", { name: ROW }));
+      fireEvent.click(await screen.findByRole("button", { name: action }));
+      await waitFor(() => expect(screen.queryByRole("button", { name: ROW })).toBeNull());
+      const method = action === "Verify" ? backend.rpc.verify : backend.rpc.later;
+      await waitFor(() => expect(method).toHaveBeenCalledOnce());
+      // Offline from here: every read that could replace the prediction fails.
+      backend.failReads();
+      backend.acknowledge();
+      await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
+      expect(screen.queryByRole("button", { name: ROW })).toBeNull();
+
+      await finishAgain(slot);
 
       expect(await screen.findByRole("button", { name: ROW })).toBeTruthy();
     },

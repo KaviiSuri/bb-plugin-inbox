@@ -78,6 +78,7 @@ export function InboxTab({
         openThread(id);
       }}
       actions={actions}
+      coveredAt={coveredAt(item, state.threadsById.get(item.threadId))}
       onSignedOff={() => setOpenId(null)}
     />
   );
@@ -199,6 +200,7 @@ function ItemRow({
   onToggle,
   onOpenThread,
   actions,
+  coveredAt,
   onSignedOff,
 }: {
   item: InboxItem;
@@ -208,12 +210,14 @@ function ItemRow({
   onToggle: () => void;
   onOpenThread: (threadId: string) => void;
   actions: SignOffActions;
+  /** The latest attention this row shows, which a sign-off covers. */
+  coveredAt: number;
   onSignedOff: () => void;
 }) {
   const [failure, setFailure] = useState<string | null>(null);
   const signOff = (kind: "verify" | "later") => {
     setFailure(null);
-    actions[kind](item.threadId).then(onSignedOff, () =>
+    actions[kind](item.threadId, coveredAt).then(onSignedOff, () =>
       setFailure(
         kind === "verify"
           ? "Couldn't save the verification. Try again."
@@ -473,4 +477,12 @@ function RunningGlyph({ thread }: { thread: PluginSidebarThread | undefined }) {
       <ThreadStatusGlyph indicator={status.indicator} rowStatus={status.rowStatus} />
     </span>
   );
+}
+
+/**
+ * What a sign-off covers: the row's attention, or the thread's own if that is
+ * later. The Inbox compares a sign-off with both, so newer work exceeds it.
+ */
+function coveredAt(item: InboxItem, thread: PluginSidebarThread | undefined): number {
+  return Math.max(item.attentionAt, thread?.latestAttentionAt ?? 0);
 }

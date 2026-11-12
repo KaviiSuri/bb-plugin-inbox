@@ -14,12 +14,6 @@ import {
 import { currentClient } from "./client-name.js";
 
 /**
- * Until the server answers, a sign-off is predicted to cover all of the
- * thread's work, so the row leaves at once.
- */
-const PREDICTED_AT = Number.MAX_SAFE_INTEGER;
-
-/**
  * Waits between reads of a signed-off thread while its prediction is still
  * showing, about 25 seconds in all.
  */
@@ -32,9 +26,9 @@ export interface SignOffs {
   loaded: boolean;
   /**
    * Reads one thread's Verification and Later again, until the server's rows
-   * have replaced this client's predictions.
+   * have replaced this client's prediction, dated `predictedAt`.
    */
-  refresh(threadId: string): Promise<void>;
+  refresh(threadId: string, predictedAt: number): Promise<void>;
 }
 
 export function useSignOffs(threadIds: readonly string[]): SignOffs {
@@ -65,8 +59,9 @@ export function useSignOffs(threadIds: readonly string[]): SignOffs {
       loaded,
       // A read only releases a prediction if it started after the write was
       // acknowledged. The server's own refresh usually starts before that, and
-      // asking again while it's in flight just joins it, so keep reading.
-      async refresh(threadId) {
+      // asking again while it's in flight just joins it, so keep reading: the
+      // server's Verification carries the diff base that scopes a return.
+      async refresh(threadId, predictedAt) {
         for (const wait of [0, ...RELEASE_RETRY_MS]) {
           if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
           await Promise.all([
@@ -75,8 +70,8 @@ export function useSignOffs(threadIds: readonly string[]): SignOffs {
           ]);
           const rows = rowsRef.current;
           if (
-            rows.verifications?.[threadId]?.verifiedAt !== PREDICTED_AT &&
-            rows.laters?.[threadId]?.laterAt !== PREDICTED_AT
+            rows.verifications?.[threadId]?.verifiedAt !== predictedAt &&
+            rows.laters?.[threadId]?.laterAt !== predictedAt
           ) {
             return;
           }
@@ -108,27 +103,33 @@ export function useInboxStart(): number | null {
 }
 
 export interface SignOffActions {
-  verify(threadId: string): Promise<void>;
-  later(threadId: string): Promise<void>;
+  /**
+   * `coveredAt` is the latest attention the row showed; any newer work
+   * brings the thread back even if the server's row never arrives here.
+   */
+  verify(threadId: string, coveredAt: number): Promise<void>;
+  later(threadId: string, coveredAt: number): Promise<void>;
 }
 
 /**
- * Verify and Later, predicted at once. `refresh` reads the thread's sign-offs
- * again once the server has the write: the server's own refresh starts before
- * the write is acknowledged, and the prediction (which covers all future
- * work) would then stay until a reload, so the thread could never come back
- * in this client (#13, #25).
+ * Verify and Later, predicted at once. The prediction covers only the work
+ * the row showed, dated at its attention, never future work: the server's row
+ * can be slow to replace it, or never arrive (#25). `refresh` then reads the
+ * thread's sign-offs until the server's rows replace it.
  */
 export function useSignOffActions(
-  refresh: (threadId: string) => Promise<void>,
+  refresh: (threadId: string, predictedAt: number) => Promise<void>,
 ): SignOffActions {
+  // Read by the optimistic updates, which only get the write's input.
+  const coveredRef = useRef(new Map<string, number>());
+  const covered = (threadId: string) => coveredRef.current.get(threadId) ?? 0;
   const verify = experimental_useRpcMutation({
     contract: verificationRpcContract,
     method: "verify",
     optimistic: ({ threadId, client }, cache) => {
       cache.updateKey("verifications", threadId, () => ({
         threadId,
-        verifiedAt: PREDICTED_AT,
+        verifiedAt: covered(threadId),
         client,
         diffBase: null,
         prChecksState: null,
@@ -141,20 +142,22 @@ export function useSignOffActions(
     optimistic: ({ threadId, client }, cache) => {
       cache.updateKey("laters", threadId, () => ({
         threadId,
-        laterAt: PREDICTED_AT,
+        laterAt: covered(threadId),
         client,
       }));
     },
   });
   return useMemo(
     () => ({
-      async verify(threadId) {
+      async verify(threadId, coveredAt) {
+        coveredRef.current.set(threadId, coveredAt);
         await verify.mutate({ threadId, client: currentClient() });
-        void refresh(threadId);
+        void refresh(threadId, coveredAt);
       },
-      async later(threadId) {
+      async later(threadId, coveredAt) {
+        coveredRef.current.set(threadId, coveredAt);
         await later.mutate({ threadId, client: currentClient() });
-        void refresh(threadId);
+        void refresh(threadId, coveredAt);
       },
     }),
     [verify.mutate, later.mutate, refresh],
