@@ -46,6 +46,9 @@ const FINISHED = makeSidebarThread({
   },
 });
 
+// Child turn ends, as the server's turn/completed events date them.
+let completions: Record<string, number> = {};
+
 // The live sidebar, which the test changes when the thread works again.
 // renderSlot fixes its threads at render, so the test app's hook is wrapped.
 let threads: PluginSidebarThread[] = [FINISHED];
@@ -72,6 +75,7 @@ function useLiveSidebarThreads() {
 
 beforeEach(() => {
   threads = [FINISHED];
+  completions = {};
   verdicts = { [THREAD_ID]: report(15) };
   testSdkApp.experimental_useSidebarThreads = useLiveSidebarThreads;
 });
@@ -89,14 +93,14 @@ type Rows = Record<string, unknown>;
 
 /** The classifier's verdict on each thread's latest turn end: a report. */
 let verdicts: Rows = {};
-const report = (turnKey: number) => ({
+const report = (turnKey: number, completedAt: number | null = null) => ({
   verdict: "report",
   source: "heuristic",
   fallback: null,
   grilling: false,
   turnKey,
-  completedAt: null,
-  classifiedAt: turnKey,
+  completedAt,
+  classifiedAt: completedAt ?? turnKey,
 });
 
 /** What the server's Verification covered: src/a.ts as it was then. */
@@ -245,7 +249,16 @@ function renderInbox() {
       ...backend.rpc,
     },
     sdk: {
-      threads: { interactions: { list: async () => [] } },
+      threads: {
+        interactions: { list: async () => [] },
+        output: async ({ threadId }: { threadId: string }) => ({ output: `Report from ${threadId}` }),
+        events: {
+          list: async ({ threadId }: { threadId: string }) =>
+            (completions[threadId] === undefined
+              ? []
+              : [{ type: "turn/completed", createdAt: completions[threadId] }]) as never,
+        },
+      },
       plugins: { callRpc: gitFiles },
     },
   });
@@ -348,4 +361,56 @@ describe("Inbox: a signed-off thread comes back on the client that signed it off
       expect(await screen.findByRole("button", { name: ROW })).toBeTruthy();
     },
   );
+
+});
+
+describe("Inbox: Later on a parent's FYI dated by a folded child's report (#25)", () => {
+  const PARENT_ROW = "Build billing: fyi";
+  // The parent read its own report at 15; a research child reported at 500.
+  // A child's success doesn't move its parent's attention, so the item is
+  // dated by the child's turn end, later than the parent's own attention.
+  const PARENT = makeSidebarThread({
+    id: "thr_parent",
+    projectId: "proj_app",
+    title: "Build billing",
+    latestAttentionAt: 15,
+    lastReadAt: 15,
+  });
+  const CHILD = makeSidebarThread({
+    id: "thr_child",
+    projectId: "proj_app",
+    title: "Research tax rules",
+    parentThreadId: "thr_parent",
+    latestAttentionAt: 10,
+    lastReadAt: 0,
+    updatedAt: 500,
+  });
+
+  it("clears at once, stays cleared, and comes back on the child's next report", async () => {
+    threads = [PARENT, CHILD];
+    completions = { thr_child: 500 };
+    verdicts = { thr_parent: report(15), thr_child: report(10, 500) };
+    const { backend, slot } = renderInbox();
+
+    fireEvent.click(await screen.findByRole("button", { name: PARENT_ROW }));
+    fireEvent.click(await screen.findByRole("button", { name: "Later" }));
+    // Before the server has the write: the prediction alone clears it.
+    await waitFor(() => expect(backend.rpc.later).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: PARENT_ROW })).toBeNull();
+
+    backend.acknowledge();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 200)));
+    expect(screen.queryByRole("button", { name: PARENT_ROW })).toBeNull();
+
+    // The child reports again, after the Later.
+    completions = { thr_child: 2_000 };
+    verdicts = { thr_parent: report(15), thr_child: report(10, 2_000) };
+    await act(async () => {
+      threads = [PARENT, { ...CHILD, updatedAt: 2_000 }];
+      for (const listener of listeners) listener();
+    });
+    await slot.behavior.experimental_invalidateRpc([turnEndTag("thr_child")]);
+
+    expect(await screen.findByRole("button", { name: PARENT_ROW })).toBeTruthy();
+  });
 });
