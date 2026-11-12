@@ -51,7 +51,7 @@ export interface InboxViewState {
 
 export function useInboxView(): InboxViewState {
   const { status, threads } = experimental_useSidebarThreads();
-  const interactions = usePendingInteractions(threads);
+  const { interactions, interactionsMissing } = usePendingInteractions(threads);
   const childCompletions = useChildCompletions(threads);
   // Children dated by their latest turn end, as their own items see them,
   // so evidence and scoped reads are keyed like the model compares.
@@ -84,6 +84,7 @@ export function useInboxView(): InboxViewState {
     () => ({
       threads,
       interactions,
+      interactionsMissing,
       childCompletions,
       turnEnds,
       turnEndsWaitingSince,
@@ -97,7 +98,7 @@ export function useInboxView(): InboxViewState {
     }),
     // `tick` re-reads the clock when a timed change is due.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [threads, interactions, childCompletions, turnEnds, turnEndsWaitingSince, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
+    [threads, interactions, interactionsMissing, childCompletions, turnEnds, turnEndsWaitingSince, runtime, evidence, signOffs, scoped, inboxStartedAt, tick],
   );
   const view = useMemo(() => deriveInbox(snapshot), [snapshot]);
 
@@ -198,11 +199,13 @@ function useEvidence(
 
 /**
  * The interaction each waiting thread is blocked on, fetched only for threads
- * with `hasPendingInteraction`, and again whenever that thread changes.
+ * with `hasPendingInteraction`, and again whenever that thread changes. Also
+ * the waiting threads whose read failed or found nothing pending, so the
+ * model shows them rather than hold them back as loading.
  */
-function usePendingInteractions(
+export function usePendingInteractions(
   threads: readonly PluginSidebarThread[],
-): Readonly<Record<string, PendingInteractionSummary>> {
+): Pick<InboxSnapshot, "interactions" | "interactionsMissing"> {
   const sdk = useSdk();
   const [fetched, setFetched] = useState<
     Readonly<Record<string, { version: string; summary: PendingInteractionSummary | null }>>
@@ -218,6 +221,16 @@ function usePendingInteractions(
 
   useEffect(() => {
     const controller = new AbortController();
+    // Forget threads that stopped waiting, so a later ask isn't dated by
+    // the one before it.
+    const waitingIds = new Set(waiting.map((w) => w.id));
+    setFetched((current) =>
+      Object.keys(current).every((id) => waitingIds.has(id))
+        ? current
+        : Object.fromEntries(
+            Object.entries(current).filter(([id]) => waitingIds.has(id)),
+          ),
+    );
     for (const { id, version } of waiting) {
       if (fetched[id]?.version === version) continue;
       sdk.threads.interactions
@@ -227,7 +240,12 @@ function usePendingInteractions(
           setFetched((current) => ({ ...current, [id]: { version, summary } }));
         })
         .catch(() => {
-          // Leave the item on its generic reason; the next change retries.
+          if (controller.signal.aborted) return;
+          // Show the item on its generic reason; the next change retries.
+          setFetched((current) => ({
+            ...current,
+            [id]: { version, summary: current[id]?.summary ?? null },
+          }));
         });
     }
     return () => controller.abort();
@@ -236,11 +254,13 @@ function usePendingInteractions(
   }, [sdk, waitingKey]);
 
   return useMemo(() => {
-    const summaries: Record<string, PendingInteractionSummary> = {};
+    const interactions: Record<string, PendingInteractionSummary> = {};
+    const interactionsMissing: Record<string, true> = {};
     for (const { id } of waiting) {
-      const summary = fetched[id]?.summary;
-      if (summary) summaries[id] = summary;
+      const entry = fetched[id];
+      if (entry?.summary) interactions[id] = entry.summary;
+      else if (entry) interactionsMissing[id] = true;
     }
-    return summaries;
+    return { interactions, interactionsMissing };
   }, [waiting, fetched]);
 }
