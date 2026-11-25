@@ -26,6 +26,17 @@ export interface InboxSnapshot {
   threads: readonly PluginSidebarThread[];
   /** For threads with `hasPendingInteraction`, what they wait on. */
   interactions: Readonly<Record<string, PendingInteractionSummary>>;
+  /**
+   * Waiting threads whose interaction read failed or found nothing pending:
+   * shown on the generic reason, never held back. Missing means loading.
+   */
+  interactionsMissing?: Readonly<Record<string, true>>;
+  /**
+   * When this client started waiting on each interaction read that hasn't
+   * answered (client clock); bounds that wait so an ask is never hidden for
+   * long.
+   */
+  interactionsWaitingSince?: Readonly<Record<string, number>>;
   /** Latest server turn/completed event per child; null while unknown.
    * Sidebar latestAttentionAt does not advance on ordinary child idle. */
   childCompletions: Readonly<Record<string, number | null>>;

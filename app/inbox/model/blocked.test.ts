@@ -3,8 +3,8 @@ import {
   summarizePendingInteractions,
   type PendingInteractionList,
 } from "./blocked.js";
-import { deriveInbox } from "./index.js";
-import { makeSidebarThread, QUESTION, snapshot } from "./test-snapshot.js";
+import { ASK_READ_GRACE_MS, deriveInbox, nextChangeAt } from "./index.js";
+import { makeSidebarThread, NOW, QUESTION, snapshot } from "./test-snapshot.js";
 
 describe("deriveInbox: Blocked on you", () => {
   it("shows a thread waiting on a question form as answer", () => {
@@ -60,6 +60,65 @@ describe("deriveInbox: Blocked on you", () => {
   });
 });
 
+describe("deriveInbox: an ask that arrives mid-turn (#24)", () => {
+  // Attention at 40 (the turn started), read at 50, asked at 60.
+  const read = makeSidebarThread({
+    id: "thr_q",
+    status: "active",
+    hasPendingInteraction: true,
+    latestAttentionAt: 40,
+    lastReadAt: 50,
+  });
+  const asked = (askedAt: number) => ({ thr_q: { ...QUESTION, askedAt } });
+
+  it("read before the ask → New, dated by the ask", () => {
+    const view = deriveInbox(snapshot({ threads: [read], interactions: asked(60) }));
+    expect(view.newForYou).toMatchObject([{ threadId: "thr_q", attentionAt: 60 }]);
+    expect(view.tabCount).toBe(1);
+  });
+
+  it("opened after the ask → Seen", () => {
+    const view = deriveInbox(
+      snapshot({ threads: [{ ...read, lastReadAt: 70 }], interactions: asked(60) }),
+    );
+    expect(view.newForYou).toEqual([]);
+    expect(view.seen).toMatchObject([{ threadId: "thr_q" }]);
+  });
+
+  it("holds a read thread back while its ask's time loads", () => {
+    const view = deriveInbox(snapshot({ threads: [read] }));
+    expect([...view.newForYou, ...view.seen]).toEqual([]);
+  });
+
+  it("shows a read thread once its interaction read outlasts the grace, in Seen", () => {
+    const loading = { threads: [read], interactionsWaitingSince: { thr_q: NOW - ASK_READ_GRACE_MS + 1 } };
+    expect(deriveInbox(snapshot(loading)).seen).toEqual([]);
+    expect(nextChangeAt(snapshot(loading))).toBe(NOW + 1);
+    const view = deriveInbox(
+      snapshot({ threads: [read], interactionsWaitingSince: { thr_q: NOW - ASK_READ_GRACE_MS } }),
+    );
+    expect(view.seen).toMatchObject([{ threadId: "thr_q", reason: "Waiting for you" }]);
+  });
+
+  it("surfaces a waiting child on its stopped parent once the child's read outlasts the grace", () => {
+    const parent = makeSidebarThread({ id: "thr_parent", latestAttentionAt: 40, lastReadAt: 50 });
+    const child = { ...read, id: "thr_child", parentThreadId: "thr_parent" };
+    const at = (since: number) =>
+      deriveInbox(snapshot({ threads: [parent, child], interactionsWaitingSince: { thr_child: since } }));
+    expect([...at(NOW).newForYou, ...at(NOW).seen]).toEqual([]);
+    expect([...at(NOW - ASK_READ_GRACE_MS).newForYou, ...at(NOW - ASK_READ_GRACE_MS).seen]).toMatchObject([
+      { threadId: "thr_parent", word: "approve" },
+    ]);
+  });
+
+  it("shows a read thread whose interaction read failed, in Seen", () => {
+    const view = deriveInbox(
+      snapshot({ threads: [read], interactionsMissing: { thr_q: true } }),
+    );
+    expect(view.seen).toMatchObject([{ threadId: "thr_q", reason: "Waiting for you" }]);
+  });
+});
+
 describe("summarizePendingInteractions: answer vs approve", () => {
   const base = {
     createdAt: 1,
@@ -105,6 +164,7 @@ describe("summarizePendingInteractions: answer vs approve", () => {
     expect(summary).toEqual({
       kind: "user_question",
       reason: "Asks: Which database should we use?",
+      askedAt: 1,
     });
   });
 
@@ -147,7 +207,7 @@ describe("summarizePendingInteractions: answer vs approve", () => {
       summarizePendingInteractions([
         approval(subject),
       ] as unknown as PendingInteractionList),
-    ).toEqual({ kind: "approval", reason, subject: subject.kind });
+    ).toEqual({ kind: "approval", reason, subject: subject.kind, askedAt: 1 });
   });
 
   it("ignores interactions that are no longer pending", () => {
@@ -167,6 +227,16 @@ describe("summarizePendingInteractions: answer vs approve", () => {
           payload: { kind: "plugin", data: null, title: "Enter the API token" },
         },
       ] as unknown as PendingInteractionList),
-    ).toEqual({ kind: "plugin", reason: "Enter the API token" });
+    ).toEqual({ kind: "plugin", reason: "Enter the API token", askedAt: 1 });
+  });
+
+  it("dates the ask by the newest still-pending interaction", () => {
+    expect(
+      summarizePendingInteractions([
+        { ...approval({ kind: "file_change" }), createdAt: 90, status: "resolved" },
+        { ...approval({ kind: "file_change" }), createdAt: 40 },
+        { ...approval({ kind: "file_change" }), createdAt: 60 },
+      ] as unknown as PendingInteractionList)?.askedAt,
+    ).toBe(60);
   });
 });
