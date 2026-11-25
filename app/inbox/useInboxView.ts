@@ -45,8 +45,8 @@ export interface InboxViewState {
   ready: boolean;
   view: InboxView;
   threadsById: ReadonlyMap<string, PluginSidebarThread>;
-  /** Reads one thread's Verification and Later again. */
-  refreshSignOffs(threadId: string): Promise<void>;
+  /** Reads one thread's Verification and Later until the server's replace a prediction. */
+  refreshSignOffs(threadId: string, predictedAt: number): Promise<void>;
 }
 
 export function useInboxView(): InboxViewState {

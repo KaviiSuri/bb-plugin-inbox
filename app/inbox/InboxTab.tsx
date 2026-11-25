@@ -213,7 +213,12 @@ function ItemRow({
   const [failure, setFailure] = useState<string | null>(null);
   const signOff = (kind: "verify" | "later") => {
     setFailure(null);
-    actions[kind](item.threadId).then(onSignedOff, () =>
+    // A sign-off covers exactly what this row shows. The item is derived
+    // from the same snapshot as its thread, and its attention starts at the
+    // thread's (a child's dated by its turn end) and only grows with folded
+    // news, so the thread's own attention never exceeds it. Using the live
+    // thread's instead could cover work the row never showed.
+    actions[kind](item.threadId, item.attentionAt).then(onSignedOff, () =>
       setFailure(
         kind === "verify"
           ? "Couldn't save the verification. Try again."

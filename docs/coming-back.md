@@ -35,6 +35,25 @@ and fresh text. The verifying client explicitly refetches after acknowledgement;
 a live check found that its optimistic timestamp could otherwise outlive the
 write and prevent any future return until reload.
 
+#25 found that one refetch isn't enough. bb releases a prediction only for a
+read that started after the write was acknowledged. The server invalidates
+the sign-off tag before it answers, so the realtime refresh starts first, and
+a refetch asked for while that read is in flight joins it rather than reading
+again. Live, a Later's response headers arrived at 5 ms, the invalidation
+and both reads at 6 ms, and the response body (the acknowledgement) at 7 ms;
+no later read followed, and the far-future prediction hid all new work.
+
+So the prediction is now dated at the attention the row showed (the item's,
+or the thread's own if later), never in the future: it still clears the row
+at once, and any newer finish, ask or failure exceeds it even if the server's
+row never reaches this client. Verify and Later still read again, with
+growing waits, until the server's row replaces the prediction, because only
+that row carries the diff base that scopes a return.
+`app/inbox/sign-off-return.test.tsx` drives both orders through the real SDK
+cache, including reads that never succeed. Screenshot of the returned item on
+the signing client:
+`docs/screenshots/inbox-phone-return-after-signoff.jpg`.
+
 ## Conservative fallbacks
 
 A null diff base, old base without the needed text, oversized or binary file,
