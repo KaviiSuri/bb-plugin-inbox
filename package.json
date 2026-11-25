@@ -1,16 +1,16 @@
 {
-  "name": "bb-plugin-inbox",
+  "name": "bb-plugin-agent-inbox",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A fork of bb's sidebar thread list that adds an Inbox tab for triaging agent work.",
+  "description": "Puts every agent thread that needs you in one tab: questions to answer, failed runs, and finished work to verify.",
   "engines": {
     "bb": ">=0.0",
     "bbPluginSdk": ">=0.6.112"
   },
   "bb": {
-    "name": "Inbox",
-    "description": "A fork of bb's sidebar thread list that adds an Inbox tab for triaging agent work.",
+    "name": "Agent Inbox",
+    "description": "Puts every agent thread that needs you in one tab: questions to answer, failed runs, and finished work to verify.",
     "branding": {
       "icon": "ListView"
     },

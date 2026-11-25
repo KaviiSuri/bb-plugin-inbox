@@ -53,10 +53,10 @@ hard-codes:
 | File | Upstream | Fork |
 |---|---|---|
 | `app.tsx:36-39` | slot `id: "thread-list"`, `title: "Thread list"`, its description | `id: "inbox"`, `title: "Inbox"`, a description naming the Inbox tab |
-| `app/rows/ThreadRow.tsx:290` | `"thread-list/customizeRowActions"` | `"inbox/customizeRowActions"` |
-| `shared/preferences.ts:42` | legacy `move: "thread-list/move"` | `move: "inbox/move"` |
-| `shared/preferences.ts:184` | `thread-list/move` in the `rowActions` description | `inbox/move` |
-| `skills/thread-list/SKILL.md` | path, `name: thread-list`, `bb thread-list prefs`, `thread-list/move`, title and opening line | moved to `skills/inbox/SKILL.md`; `name: inbox`, `bb inbox prefs`, `inbox/move`, and says it's the fork |
+| `app/rows/ThreadRow.tsx:290` | `"thread-list/customizeRowActions"` | `"agent-inbox/customizeRowActions"` |
+| `shared/preferences.ts:42` | legacy `move: "thread-list/move"` | `move: "agent-inbox/move"` |
+| `shared/preferences.ts:184` | `thread-list/move` in the `rowActions` description | `agent-inbox/move` |
+| `skills/thread-list/SKILL.md` | path, `name: thread-list`, `bb thread-list prefs`, `thread-list/move`, title and opening line | moved to `skills/inbox/SKILL.md`; `name: inbox`, `bb inbox prefs`, `agent-inbox/move`, and says it's the fork |
 
 Test expectations that name those ids, updated to the new ids and otherwise
 unchanged:
@@ -64,8 +64,8 @@ unchanged:
 | File | Upstream | Fork |
 |---|---|---|
 | `app.test.tsx:373` | `expect(registration.id).toBe("thread-list")` | `.toBe("inbox")` |
-| `server.test.ts:159` | `["thread-list/move", "push-notifications/level"]` | `["inbox/move", …]` |
-| `server.test.ts:192` | `"thread-list/move"` | `"inbox/move"` |
+| `server.test.ts:159` | `["thread-list/move", "push-notifications/level"]` | `["agent-inbox/move", …]` |
+| `server.test.ts:192` | `"thread-list/move"` | `"agent-inbox/move"` |
 
 Left alone on purpose: tests that pass `"thread-list"` as an arbitrary plugin
 id to the harness (`server.test.ts:6`, `app.test.tsx:374`,
@@ -130,7 +130,7 @@ mechanical:
   nested child rows 36px), the same as bb's built-in list. The Threads tab
   keeps upstream's sizes; only the Inbox tab must meet 40px.
 - **Duplicate "Move to section".** Both plugins register it (`thread-list/move`
-  and `inbox/move`), and thread action menus are additive, so with both
+  and `agent-inbox/move`), and thread action menus are additive, so with both
   enabled and organized chronologically the menu shows it twice. Accepted: it
   goes away once the built-in list is disabled.
 

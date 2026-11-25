@@ -1,6 +1,6 @@
 // The Inbox's own synced preferences. Spread into upstream's
 // `preferenceDefinitions` (shared/preferences.ts), so they share its server
-// KV, realtime channel, localStorage mirror and `bb inbox prefs` CLI.
+// KV, realtime channel, localStorage mirror and `bb agent-inbox prefs` CLI.
 import { z } from "zod";
 
 export const sidebarTabSchema = z.enum(["threads", "inbox"]);

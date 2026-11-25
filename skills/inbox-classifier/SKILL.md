@@ -25,8 +25,8 @@ plugins → Inbox → Turn-end classifier with bb's model picker, then Save.
   one word, and is archived and stopped. If it fails, times out (90s) or gives
   no clear answer, the plain rule decides.
 
-From the CLI, read it with `bb plugin rpc call inbox getTurnEndClassifier`
-and turn it off with `bb plugin rpc call inbox setTurnEndClassifier
+From the CLI, read it with `bb plugin rpc call agent-inbox getTurnEndClassifier`
+and turn it off with `bb plugin rpc call agent-inbox setTurnEndClassifier
 --input-file <file>` where the file holds `{"selection": null}`.
 
 At startup the plugin catches up on turn ends it missed while unloaded. A first
@@ -35,7 +35,7 @@ are read by the model and the rest by the plain rule.
 
 ## Reading verdicts
 
-`bb plugin rpc call inbox turnEnds --input-file <file>` with
+`bb plugin rpc call agent-inbox turnEnds --input-file <file>` with
 `{"keys": ["thr_…"]}` returns, per thread, `null` or
 `{verdict, source, fallback, grilling, turnKey, completedAt, classifiedAt}`.
 `turnKey` is the thread's `latestAttentionAt` at that turn end; `completedAt`

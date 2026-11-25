@@ -52,7 +52,7 @@ describe("runs beside the built-in thread list", () => {
   const pluginId = pluginIdOf(manifest.name);
 
   it("has its own plugin id, so its CLI, KV namespace and localStorage mirror differ", () => {
-    expect(pluginId).toBe("inbox");
+    expect(pluginId).toBe("agent-inbox");
     expect(pluginId).not.toBe(BUILT_IN_PLUGIN_ID);
   });
 

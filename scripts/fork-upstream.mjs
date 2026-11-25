@@ -35,13 +35,13 @@ const pin = JSON.parse(readFileSync(pinPath, "utf8"));
 
 // The fork's identity. Everything else in package.json comes from upstream.
 const FORK_MANIFEST = {
-  name: "bb-plugin-inbox",
+  name: "bb-plugin-agent-inbox",
   description:
-    "A fork of bb's sidebar thread list that adds an Inbox tab for triaging agent work.",
+    "Puts every agent thread that needs you in one tab: questions to answer, failed runs, and finished work to verify.",
   bb: {
-    name: "Inbox",
+    name: "Agent Inbox",
     description:
-      "A fork of bb's sidebar thread list that adds an Inbox tab for triaging agent work.",
+      "Puts every agent thread that needs you in one tab: questions to answer, failed runs, and finished work to verify.",
   },
   scripts: { build: "bb plugin build ." },
   dependencies: { diff: "^8.0.2" },
@@ -130,6 +130,18 @@ function mergeManifest(base, overrides) {
   return merged;
 }
 
+// The app bundle imports defineRpcContract from the SDK, and Git installs skip
+// devDependencies, so the SDK has to be a runtime dependency.
+function sdkAtRuntime(manifest) {
+  const { "@get-bb/plugin-sdk": sdk, ...devDependencies } = manifest.devDependencies ?? {};
+  if (sdk === undefined) return manifest;
+  return {
+    ...manifest,
+    dependencies: { ...manifest.dependencies, "@get-bb/plugin-sdk": sdk },
+    devDependencies,
+  };
+}
+
 function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -186,7 +198,7 @@ async function vendor(bb) {
     ]),
     registryDependencies,
   });
-  writeJson(join(root, "package.json"), mergeManifest(manifest, FORK_MANIFEST));
+  writeJson(join(root, "package.json"), sdkAtRuntime(mergeManifest(manifest, FORK_MANIFEST)));
   const tsconfig = fork.forkPluginTsconfig(
     readJson(bb, pin.commit, `${pin.pluginPath}/tsconfig.json`),
   );

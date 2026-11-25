@@ -53,7 +53,7 @@ function ThreadsTab({
 export default definePluginApp((app) => {
   app.slots.experimental_threadList({
     id: "inbox",
-    title: "Inbox",
+    title: "Agent Inbox",
     description:
       "bb's thread list with an Inbox tab: pinned threads, custom sections, projects, machines, and nested threads.",
     component: ThreadList,

@@ -1,4 +1,4 @@
-# bb-plugin-inbox
+# Agent Inbox
 
 A BB sidebar thread list with two tabs: **Threads** (the full tree: nested children, shared vs. separate worktrees) and **Inbox** (a queue of what needs human attention, cleared by verifying the work).
 
@@ -16,7 +16,7 @@ bb plugin build .
 bb plugin install .
 ```
 
-Then pick **Inbox** under Settings → Appearance → Sidebar. Switching back to **Thread list** leaves the built-in list's preferences as they were: the fork keeps its own (`bb inbox prefs list`). On first load it copies your non-default `sidebar.*` settings once, as the built-in list does.
+Then pick **Agent Inbox** under Settings → Appearance → Sidebar. Switching back to **Thread list** leaves the built-in list's preferences as they were: the fork keeps its own (`bb agent-inbox prefs list`). On first load it copies your non-default `sidebar.*` settings once, as the built-in list does.
 
 While developing, `bb plugin dev .` rebuilds and reloads on every save.
 
